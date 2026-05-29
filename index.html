@@ -19,98 +19,78 @@
     // 🔗 แก้ไขบรรทัดนี้: ลิงก์จาก Google Apps Script (ต้องมี /exec ต่อท้าย)
     const API_URL = "https://script.google.com/macros/s/AKfycbyVcq0Iz6iNGRRoTEAxae3u_Gdbf6Fy8bQ3ujvri6F3g1gibZd2ghMiqqcdHjy6bb5PUg/exec";
 
-    // ฟังก์ชันหลักสำหรับสื่อสารกับ Google Sheets
+   // 1. ฟังก์ชันเชื่อมต่อ (ห้ามลบ)
     async function callAPI(action, data = {}) {
-      try {
-        const response = await fetch(API_URL, {
-          method: 'POST',
-          body: JSON.stringify({ action: action, data: data })
-        });
-        return await response.json();
-      } catch (error) {
-        console.error("API Error:", error);
-        return { status: "Error", message: error.message };
-      }
-    }
-
-    // ฟังก์ชันช่วยแสดงแจ้งเตือน
-    function showToast(message, type) {
-      let typeStr = type || 'success';
-      const container = document.getElementById('toastContainer');
-      const toast = document.createElement('div');
-      let bgColor = typeStr === 'success' ? 'bg-emerald-600' : 'bg-red-500';
-      toast.className = 'flex items-center gap-3 ' + bgColor + ' text-white px-6 py-4 rounded-2xl shadow-2xl transition-all duration-300';
-      toast.innerHTML = '<span class="font-bold">' + message + '</span>';
-      container.appendChild(toast);
-      setTimeout(() => toast.remove(), 3000);
-    }
-
-    // --- โหลดข้อมูลสินค้า ---
-    async function loadProductGrid() {
-      let data = await callAPI('getProducts');
-      if (data && Array.isArray(data)) {
-        let grid = document.getElementById('productGrid');
-        grid.innerHTML = '';
-        data.forEach(function(row) {
-          let safeName = row[1].toString().replace(/'/g, "\\'").replace(/"/g, '&quot;');
-          let cardHtml = '<div class="modern-card p-4 cursor-pointer" onclick="addToCart(\'' + safeName + '\', ' + row[3] + ')">' +
-            '<div class="bg-emerald-50 h-24 rounded-xl flex items-center justify-center text-4xl mb-3">🍵</div>' +
-            '<h3 class="font-bold text-center">' + row[1] + '</h3><p class="text-emerald-600 font-bold text-center">฿' + row[3] + '</p></div>';
-          grid.innerHTML += cardHtml;
-        });
-      }
-    }
-
-    // --- โหลดข้อมูลสินค้าในหน้า Admin ---
-    async function loadAdminProducts() {
-      let products = await callAPI('getAdminProducts');
-      if (products && Array.isArray(products)) {
-        let html = '';
-        products.forEach((p, index) => {
-          html += `<tr>...ตารางสินค้าของคุณ...</tr>`;
-        });
-        document.getElementById('productTableBody').innerHTML = html;
-      }
-    }
-
-    // --- ฟังก์ชันบันทึกข้อมูลสินค้า ---
-    async function saveProduct() {
-      let btn = document.getElementById('btnSaveProduct');
-      btn.innerText = "กำลังบันทึก..."; btn.disabled = true;
-      
-      let data = { /* ดึงค่าจาก input เหมือนเดิม */ };
-      let res = await callAPI('saveProduct', data);
-      
-      btn.innerText = "บันทึกข้อมูลสินค้า"; btn.disabled = false;
-      if (res.status === "Success") {
-        showToast("บันทึกสำเร็จ", "success");
-        closeProductModal();
-        loadAdminProducts();
-      } else {
-        showToast("เกิดข้อผิดพลาด: " + res.message, "error");
-      }
-    }
-
-    // --- ฟังก์ชันลบสินค้า (เชื่อม Modal) ---
-    let deleteTarget = { rowIdx: null };
-    function deleteProduct(rowIdx, name) {
-        deleteTarget.rowIdx = rowIdx;
-        document.getElementById('deleteMsg').innerText = `คุณต้องการลบ "${name}" ใช่หรือไม่?`;
-        document.getElementById('confirmDeleteModal').classList.remove('hidden');
-    }
-
-    document.getElementById('btnConfirmDelete').onclick = async function() {
-        let res = await callAPI('deleteProduct', { rowIdx: deleteTarget.rowIdx });
-        document.getElementById('confirmDeleteModal').classList.add('hidden');
-        if(res.status === "Success") {
-            showToast("ลบสำเร็จ", "success");
-            loadAdminProducts();
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: action, data: data })
+            });
+            return await response.json();
+        } catch (error) {
+            console.error("API Error:", error);
+            showToast("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้", "error");
+            return { status: "Error" };
         }
-    };
+    }
 
-    // เริ่มต้นทำงาน
-    loadProductGrid();
-    
-  </script>
+    // 2. ฟังก์ชันโหลดสินค้า (แทนที่ google.script.run)
+    async function loadProducts() {
+        let data = await callAPI('getProducts');
+        if (data && Array.isArray(data)) {
+            let grid = document.getElementById('productGrid');
+            grid.innerHTML = '';
+            data.forEach(function(row) {
+                let safeName = row[1].toString().replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                let cardHtml = '<div class="modern-card p-4 cursor-pointer" onclick="addToCart(\'' + safeName + '\', ' + row[3] + ')">' +
+                    '<div class="bg-emerald-50 h-24 rounded-xl flex items-center justify-center text-4xl mb-3">🍵</div>' +
+                    '<h3 class="font-bold text-center">' + row[1] + '</h3><p class="text-emerald-600 font-bold text-center">฿' + row[3] + '</p></div>';
+                grid.innerHTML += cardHtml;
+            });
+        }
+    }
+
+    // 3. ฟังก์ชันบันทึกการขาย (แทนที่ google.script.run)
+    async function confirmPayment() {
+        let btn = document.getElementById('btnConfirm');
+        btn.innerText = "กำลังบันทึก..."; btn.disabled = true;
+
+        let cartData = cart.map(i => ({name: i.name, qty: i.qty, total: i.price * i.qty}));
+        let payload = {
+            cartData: cartData,
+            paymentType: selectedPayment,
+            // ... (ใส่ค่าอื่นๆ ที่คุณต้องการส่งไป)
+        };
+
+        let res = await callAPI('processSale', payload);
+
+        if(res.status === "Success") {
+            showToast("บันทึกสำเร็จ!", "success");
+            // ล้างหน้าจอหรือเปิดใบเสร็จ
+        }
+        btn.innerText = "ยืนยันชำระเงิน"; btn.disabled = false;
+    }
+
+    // 4. ฟังก์ชันบันทึกข้อมูลสินค้า (แทนที่ google.script.run)
+    async function saveProduct() {
+        let btn = document.getElementById('btnSaveProduct');
+        btn.innerText = "กำลังบันทึก..."; btn.disabled = true;
+        
+        // ... (ดึงข้อมูลจาก form ตามเดิม) ...
+        let data = { /* ... */ };
+        
+        let res = await callAPI('saveProduct', data);
+        
+        btn.innerText = "บันทึกข้อมูลสินค้า"; btn.disabled = false;
+        if (res.status === "Success") {
+            showToast("บันทึกสำเร็จ", "success");
+            closeProductModal();
+            loadAdminProducts(); // ฟังก์ชันนี้ต้องแก้ให้ใช้ callAPI ด้วย
+        }
+    }
+
+    // เรียกฟังก์ชันเมื่อเปิดหน้าเว็บ
+    loadProducts();
+</script>
 </body>
 </html>
