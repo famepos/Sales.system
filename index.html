@@ -2059,6 +2059,22 @@ document.getElementById('btnConfirmDelete').onclick = async function() {
         showToast("เกิดข้อผิดพลาดในการลบ", "error");
     }
 };
+
+    async function loadAdminProducts() {
+    document.getElementById('productLoading').classList.remove('hidden');
+    let products = await callAPI('getAdminProducts');
+    document.getElementById('productLoading').classList.add('hidden');
+    
+    // --- เพิ่มการเช็คข้อมูลที่ได้รับมา ---
+    if (products && Array.isArray(products)) {
+        currentAdminProducts = products;
+        // ... โค้ด .forEach ของคุณที่นี่ ...
+    } else {
+        console.error("เกิดข้อผิดพลาดในการดึงข้อมูล:", products);
+        showToast("ไม่สามารถโหลดสินค้าได้", "error");
+    }
+}
+    
   </script>
 </body>
 </html>
