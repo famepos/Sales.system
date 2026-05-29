@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FamePOS - ระบบจัดการร้านค้า</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script> 
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap');
+    body { font-family: 'Kanit', sans-serif; background-color: #ecfdf5; color: #064e3b; margin: 0; }
+    .modern-card { background: white; border: 1px solid #d1fae5; border-radius: 1.5rem; transition: 0.2s; }
+    .modern-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.1); }
+  </style>
+</head>
+<body class="h-screen flex overflow-hidden">
+  
+  <div id="toastContainer" class="fixed top-5 right-5 z-[9999] flex flex-col gap-3 pointer-events-none"></div>
+
+  <div class="w-20 lg:w-64 bg-white border-r border-emerald-100 p-6 flex flex-col shadow-sm z-10">
+    <h1 class="text-2xl font-bold text-emerald-600 mb-10 flex items-center gap-2">
+        <span class="bg-emerald-500 text-white p-2 rounded-xl">F</span> 
+        <span class="hidden lg:block truncate">FamePOS</span>
+    </h1>
+    <nav class="space-y-4">
+      <a id="nav-sales" onclick="showView('sales')" class="flex items-center gap-3 text-emerald-700 bg-emerald-50 p-3 rounded-xl font-semibold cursor-pointer transition">
+        <span class="text-xl">🛒</span> <span class="hidden lg:block">ขายสินค้า</span>
+      </a>
+      <a id="nav-history" onclick="showView('history')" class="flex items-center gap-3 text-gray-500 p-3 rounded-xl hover:bg-emerald-50 hover:text-emerald-600 font-semibold cursor-pointer transition">
+        <span class="text-xl">📜</span> <span class="hidden lg:block">บิลทั้งหมด</span>
+      </a>
+      <a id="nav-products" onclick="showView('products')" class="flex items-center gap-3 text-gray-500 p-3 rounded-xl hover:bg-emerald-50 hover:text-emerald-600 font-semibold cursor-pointer transition">
+        <span class="text-xl">📦</span> <span class="hidden lg:block">จัดการสินค้า</span>
+      </a>
+    </nav>
+  </div>
+
+  <div class="flex-1 flex w-full relative h-full">
+
+    <div id="salesView" class="flex w-full h-full">
+      <div class="flex-1 p-8 overflow-y-auto">
+        <h1 class="text-2xl font-bold mb-6">☕ เลือกสินค้า</h1>
+        <div id="productGrid" class="grid grid-cols-2 lg:grid-cols-4 gap-6"></div>
+      </div>
+      
+      <div class="w-96 bg-white border-l border-emerald-100 p-8 flex flex-col shadow-xl z-10">
+        <h2 class="text-xl font-bold mb-6 border-b pb-4 border-emerald-100">🛒 ตะกร้าสินค้า</h2>
+        <div id="cartItems" class="flex-1 overflow-y-auto space-y-3 pr-2"></div>
+        <div class="pt-6 border-t border-emerald-100 mt-auto">
+          <div class="flex justify-between text-2xl font-bold mb-6"><span>รวม</span><span id="totalPrice" class="text-emerald-600">฿0.00</span></div>
+          <button onclick="checkout()" class="w-full bg-emerald-500 text-white p-4 rounded-2xl font-bold text-lg hover:bg-emerald-600 shadow-md transition">ชำระเงิน</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="historyView" class="hidden w-full h-full p-6 overflow-y-auto bg-gray-50/50">
+      <div class="w-full min-h-full bg-white p-8 rounded-3xl shadow-sm border border-emerald-100 flex flex-col">
+        <div class="flex flex-col xl:flex-row justify-between items-center mb-6 border-b pb-4 gap-4">
+          <h1 class="text-3xl font-bold text-emerald-800">📜 บิลทั้งหมด</h1>
+          <div class="flex flex-wrap items-center gap-3 justify-end">
+            <input type="date" id="filterDate" oninput="loadAllHistory()" class="p-3 rounded-xl border-2 border-emerald-100 outline-none text-sm">
+            <input type="text" id="filterOrderId" oninput="loadAllHistory()" placeholder="พิมพ์เลขบิลเพื่อค้นหา..." class="p-3 rounded-xl border-2 border-emerald-100 outline-none text-sm w-48">
+          </div>
+        </div>
+        <div id="historyPageContainer" class="space-y-4"></div>
+      </div>
+    </div>
+
+    <div id="productManagementView" class="hidden w-full h-full p-6 overflow-y-auto bg-gray-50/50">
+      <div class="w-full min-h-full bg-white p-8 rounded-3xl shadow-sm border border-emerald-100 flex flex-col">
+        <div class="flex justify-between items-center mb-6 border-b pb-4">
+          <h1 class="text-3xl font-bold text-emerald-800">📦 จัดการสินค้า (Stock)</h1>
+          <button onclick="openProductModal()" class="px-5 py-3 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-600 transition shadow-sm flex items-center gap-2"><span>➕</span> เพิ่มสินค้าใหม่</button>
+        </div>
+        <div id="productLoading" class="text-center text-emerald-600 font-bold py-12 hidden">⏳ กำลังโหลดข้อมูล...</div>
+        <div class="flex-1 overflow-x-auto rounded-xl border border-gray-200">
+           <table class="w-full text-left border-collapse">
+              <thead>
+                 <tr class="bg-emerald-50 text-emerald-800 border-b border-emerald-100">
+                    <th class="p-4 font-bold text-center w-16">รูป</th>
+                    <th class="p-4 font-bold">รหัส/Barcode</th>
+                    <th class="p-4 font-bold">ชื่อสินค้า</th>
+                    <th class="p-4 font-bold">หมวดหมู่</th>
+                    <th class="p-4 font-bold text-gray-500">ต้นทุน</th>
+                    <th class="p-4 font-bold text-emerald-600">ราคาขาย</th>
+                    <th class="p-4 font-bold text-blue-600">คงเหลือ</th>
+                    <th class="p-4 font-bold text-center">จัดการ</th>
+                 </tr>
+              </thead>
+              <tbody id="productTableBody" class="divide-y divide-gray-100 text-gray-700"></tbody>
+           </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="productFormModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+    <div class="bg-white rounded-[2rem] w-full max-w-4xl p-8 shadow-2xl relative max-h-[95vh] flex flex-col">
+      <button onclick="closeProductModal()" class="absolute top-4 right-5 text-gray-400 hover:text-red-500 text-3xl font-bold">&times;</button>
+      <h2 id="productModalTitle" class="text-2xl font-bold mb-6 text-emerald-700 border-b pb-4">✨ เพิ่มสินค้าใหม่</h2>
+      
+      <input type="hidden" id="prodRowIdx">
+      <input type="hidden" id="prodSold"> 
+      <input type="hidden" id="prodExistingImage">
+
+      <div class="flex flex-col md:flex-row gap-8 overflow-y-auto pr-2 pb-2">
+          <div class="w-full md:w-1/3 flex flex-col gap-4">
+              <div class="w-full aspect-square bg-emerald-50/50 border-2 border-dashed border-emerald-200 rounded-3xl flex flex-col items-center justify-center relative overflow-hidden">
+                  <img id="prodImagePreview" src="" class="absolute inset-0 w-full h-full object-cover hidden z-10 bg-white">
+                  <div class="text-emerald-400 flex flex-col items-center z-0">
+                      <span class="text-5xl mb-2 opacity-80">📸</span>
+                      <span class="font-medium text-sm text-emerald-600">เลือกรูปภาพ</span>
+                  </div>
+              </div>
+              <input type="file" id="prodImageInput" accept="image/*" onchange="previewProductImage(event)" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-emerald-50 file:text-emerald-700 cursor-pointer">
+          </div>
+
+          <div class="w-full md:w-2/3 space-y-5">
+             <div class="grid grid-cols-1 md:grid-span-2">
+                <label class="block text-sm font-bold text-gray-500 mb-1">บาร์โค้ด</label>
+                <div class="flex gap-2">
+                   <input type="text" id="prodBarcode" placeholder="ปล่อยว่างเพื่อรันอัตโนมัติ" class="w-full p-3 rounded-xl border border-gray-200 outline-none text-sm font-bold">
+                   <button type="button" onclick="openCameraScanner()" class="bg-emerald-400 text-white px-5 rounded-xl hover:bg-emerald-500 font-bold text-xl">📷</button>
+                </div>
+             </div>
+             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+               <div>
+                 <label class="block text-sm font-bold text-gray-500 mb-1">ชื่อสินค้า *</label>
+                 <input type="text" id="prodName" class="w-full p-3 rounded-xl border border-gray-200 outline-none text-sm">
+               </div>
+               <div>
+                 <label class="block text-sm font-bold text-gray-500 mb-1">หมวดหมู่</label>
+                 <input type="text" id="prodCategory" list="categoryList" class="w-full p-3 rounded-xl border border-gray-200 outline-none text-sm">
+                 <datalist id="categoryList"></datalist>
+               </div>
+             </div>
+             <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+               <div>
+                 <label class="block text-sm font-bold text-gray-500 mb-1">ต้นทุน</label>
+                 <input type="number" id="prodCost" class="w-full p-3 rounded-xl border border-gray-200 text-center text-sm">
+               </div>
+               <div>
+                 <label class="block text-sm font-bold text-emerald-600 mb-1">ราคาขาย *</label>
+                 <input type="number" id="prodPrice" class="w-full p-3 rounded-xl border border-emerald-200 bg-emerald-50 font-bold text-emerald-700 text-center text-lg">
+               </div>
+               <div>
+                 <label class="block text-sm font-bold text-gray-500 mb-1">หน่วยนับ</label>
+                 <input type="text" id="prodUnit" placeholder="ชิ้น, แก้ว" class="w-full p-3 rounded-xl border border-gray-200 text-center text-sm">
+               </div>
+             </div>
+             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+               <div>
+                 <label class="block text-sm font-bold text-gray-500 mb-1">จำนวนสต๊อก</label>
+                 <input type="number" id="prodStockIn" oninput="calculateModalRemaining()" placeholder="ว่าง = ไม่จำกัด" class="w-full p-3 rounded-xl border border-gray-200 text-sm">
+               </div>
+               <div>
+                 <label class="block text-sm font-bold text-blue-500 mb-1">คงเหลือ</label>
+                 <input type="text" id="prodRemaining" readonly class="w-full p-3 rounded-xl border border-blue-100 bg-blue-50 text-blue-600 font-bold text-sm">
+               </div>
+             </div>
+          </div>
+      </div>
+      <div class="mt-8 pt-6 border-t border-gray-100 flex justify-center gap-4">
+        <button onclick="saveProduct()" id="btnSaveProduct" class="px-8 py-3 bg-emerald-400 text-white rounded-xl font-bold hover:bg-emerald-500 transition shadow-md text-lg">💾 บันทึกข้อมูลสินค้า</button>
+        <button onclick="closeProductModal()" class="px-8 py-3 bg-gray-200 text-gray-600 rounded-xl font-bold hover:bg-gray-300 text-lg">ยกเลิก</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="scannerModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[130] flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl relative text-center">
+       <button onclick="closeCameraScanner()" class="absolute top-4 right-5 text-gray-400 hover:text-red-500 text-3xl font-bold">&times;</button>
+       <h2 class="text-xl font-bold mb-4 text-emerald-700">📷 สแกนบาร์โค้ด</h2>
+       <div id="reader" class="w-full mx-auto overflow-hidden rounded-xl border-2 border-emerald-100 bg-gray-50 min-h-[250px]"></div>
+       <button onclick="closeCameraScanner()" class="mt-6 w-full py-3 bg-gray-200 text-gray-700 rounded-xl font-bold">ปิดกล้อง</button>
+    </div>
+  </div>
+
+  <script>
+    // 🔗 สำคัญมาก: นำลิงก์ Web App URL ของ Google Apps Script มาวางตรงนี้ครับ
+    const API_URL = "https://script.google.com/macros/s/AKfycbyVcq0Iz6iNGRRoTEAxae3u_Gdbf6Fy8bQ3ujvri6F3g1gibZd2ghMiqqcdHjy6bb5PUg/exec;
+
+    // ฟังก์ชันตัวกลางสำหรับยิงดึง/ส่งข้อมูลข้ามเว็บด้วยวิธี Fetch API
+    async function callAPI(action, data = {}) {
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: action, data: data })
+            });
+            return await response.json();
+        } catch (error) {
+            console.error("API Error:", error);
+            showToast("การเชื่อมต่อเซิร์ฟเวอร์ผิดพลาด ❌", "error");
+        }
+    }
+
+    let currentAdminProducts = [];
+    let prodImgBase64 = null, prodImgMime = null, prodImgName = null;
+    let html5QrCode = null;
+
+    // ระบบเปลี่ยนหน้าจอพาสเทล
+    function showView(viewName) {
+        ['salesView', 'historyView', 'productManagementView'].forEach(v => document.getElementById(v).classList.add('hidden'));
+        if(viewName === 'sales') { document.getElementById('salesView').classList.remove('hidden'); loadSalesProducts(); }
+        if(viewName === 'history') { document.getElementById('historyView').classList.remove('hidden'); loadAllHistory(); }
+        if(viewName === 'products') { document.getElementById('productManagementView').classList.remove('hidden'); loadAdminProducts(); }
+    }
+
+    // หน้าขาย: โดลดปุ่มสินค้าแบบ Real-time
+    async function loadSalesProducts() {
+        let data = await callAPI('getProducts');
+        let grid = document.getElementById('productGrid');
+        grid.innerHTML = '';
+        if(data) {
+            data.forEach(row => {
+                let imgUrl = row[8] || "https://placehold.co/400x400/ecfdf5/064e3b?text="+encodeURIComponent(row[1])+"&font=kanit";
+                grid.innerHTML += `<div class="modern-card p-4 cursor-pointer" onclick="showToast('เลือกสินค้าสำเร็จ','success')">
+                    <img src="${imgUrl}" class="w-full h-32 object-cover rounded-xl mb-3 shadow-sm">
+                    <h3 class="font-bold text-center text-lg">${row[1]}</h3>
+                    <p class="text-emerald-600 font-bold text-center">฿${parseFloat(row[3]).toFixed(2)}</p>
+                </div>`;
+            });
+        }
+    }
+
+    // หน้าสต๊อก: โหลดข้อมูลสินค้าลงตาราง 8 คอลัมน์ครบถ้วน
+    async function loadAdminProducts() {
+        document.getElementById('productLoading').classList.remove('hidden');
+        let products = await callAPI('getAdminProducts');
+        document.getElementById('productLoading').classList.add('hidden');
+        
+        currentAdminProducts = products || [];
+        let html = '';
+        currentAdminProducts.forEach((p, index) => {
+            let displayRemaining = p.remaining === "" ? '♾️ ไม่จำกัด' : p.remaining;
+            let imgTag = p.image ? `<img src="${p.image}" class="w-12 h-12 object-cover rounded-xl border shadow-sm mx-auto">` : '📦';
+            html += `<tr class="hover:bg-gray-50 border-b text-center">
+                <td class="p-3">${imgTag}</td>
+                <td class="p-3 text-sm text-gray-500">${p.barcode}</td>
+                <td class="p-3 font-bold text-left">${p.name}</td>
+                <td class="p-3">${p.category || '-'}</td>
+                <td class="p-3 text-gray-500">฿${p.cost.toFixed(2)}</td>
+                <td class="p-3 font-bold text-emerald-600">฿${p.price.toFixed(2)}</td>
+                <td class="p-3 font-bold text-blue-600">${displayRemaining} ${p.unit}</td>
+                <td class="p-3">
+                    <button onclick="openProductModal(${index})" class="px-3 py-1 bg-blue-50 text-blue-500 rounded-lg font-bold">แก้ไข</button>
+                    <button onclick="deleteProduct(${p.rowIdx}, '${p.name}')" class="px-3 py-1 bg-red-50 text-red-500 rounded-lg font-bold ml-1">ลบ</button>
+                </td>
+            </tr>`;
+        });
+        document.getElementById('productTableBody').innerHTML = html || '<tr><td colspan="8" class="p-4 text-center">ไม่มีข้อมูล</td></tr>';
+    }
+
+    // เปิดปิดกล่องเพิ่มสินค้า
+    function openProductModal(index = -1) {
+        document.getElementById('prodImageInput').value = '';
+        prodImgBase64 = null;
+        if(index === -1) {
+            document.getElementById('productModalTitle').innerText = "➕ เพิ่มสินค้าใหม่";
+            document.getElementById('prodRowIdx').value = '';
+            document.getElementById('prodBarcode').value = '';
+            document.getElementById('prodName').value = '';
+            document.getElementById('prodCategory').value = '';
+            document.getElementById('prodUnit').value = '';
+            document.getElementById('prodPrice').value = '';
+            document.getElementById('prodCost').value = '';
+            document.getElementById('prodStockIn').value = '';
+            document.getElementById('prodSold').value = '0';
+            document.getElementById('prodExistingImage').value = '';
+            document.getElementById('prodImagePreview').classList.add('hidden');
+        } else {
+            let p = currentAdminProducts[index];
+            document.getElementById('productModalTitle').innerText = "✏️ แก้ไขข้อมูลสินค้า";
+            document.getElementById('prodRowIdx').value = p.rowIdx;
+            document.getElementById('prodBarcode').value = p.barcode;
+            document.getElementById('prodName').value = p.name;
+            document.getElementById('prodCategory').value = p.category;
+            document.getElementById('prodUnit').value = p.unit;
+            document.getElementById('prodPrice').value = p.price;
+            document.getElementById('prodCost').value = p.cost;
+            document.getElementById('prodStockIn').value = p.stockIn;
+            document.getElementById('prodSold').value = p.sold;
+            document.getElementById('prodExistingImage').value = p.image;
+            if(p.image) {
+                document.getElementById('prodImagePreview').src = p.image;
+                document.getElementById('prodImagePreview').classList.remove('hidden');
+            }
+        }
+        calculateModalRemaining();
+        document.getElementById('productFormModal').classList.remove('hidden');
+    }
+    function closeProductModal() { document.getElementById('productFormModal').classList.add('hidden'); }
+
+    function calculateModalRemaining() {
+        let stockIn = document.getElementById('prodStockIn').value;
+        let sold = parseInt(document.getElementById('prodSold').value) || 0;
+        document.getElementById('prodRemaining').value = stockIn === "" ? "♾️ ไม่จำกัด" : (parseInt(stockIn) - sold);
+    }
+
+    function previewProductImage(event) {
+        let file = event.target.files[0];
+        if (file) {
+            prodImgName = file.name; prodImgMime = file.type;
+            let reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('prodImagePreview').src = e.target.result;
+                document.getElementById('prodImagePreview').classList.remove('hidden');
+                prodImgBase64 = e.target.result.split(',')[1];
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    // ส่งบันทึกสินค้าผ่าน REST API
+    async function saveProduct() {
+        let barcode = document.getElementById('prodBarcode').value.trim();
+        if(barcode === "") barcode = "885" + Date.now().toString().slice(-10);
+        
+        let stockInVal = document.getElementById('prodStockIn').value;
+        let sold = parseInt(document.getElementById('prodSold').value) || 0;
+        let stockIn = stockInVal === "" ? "" : parseInt(stockInVal);
+        let remaining = stockIn === "" ? "" : stockIn - sold;
+
+        let payload = {
+            rowIdx: document.getElementById('prodRowIdx').value,
+            barcode: barcode,
+            name: document.getElementById('prodName').value.trim(),
+            category: document.getElementById('prodCategory').value.trim(),
+            unit: document.getElementById('prodUnit').value.trim(),
+            price: parseFloat(document.getElementById('prodPrice').value) || 0,
+            cost: parseFloat(document.getElementById('prodCost').value) || 0,
+            stockIn: stockIn, sold: sold, remaining: remaining,
+            imageData: prodImgBase64, imageName: prodImgName, imageMimeType: prodImgMime,
+            existingImage: document.getElementById('prodExistingImage').value
+        };
+
+        if(payload.name === "") return showToast("กรุณากรอกชื่อสินค้า","error");
+
+        document.getElementById('btnSaveProduct').innerText = "กำลังประมวลผล...";
+        let res = await callAPI('saveProduct', payload);
+        document.getElementById('btnSaveProduct').innerText = "💾 บันทึกข้อมูลสินค้า";
+        
+        if(res.status === "Success") {
+            showToast("บันทึกข้อมูลสำเร็จ!", "success");
+            closeProductModal();
+            loadAdminProducts();
+        }
+    }
+
+    async function deleteProduct(rowIdx, name) {
+        if(confirm(`คุณต้องการลบ "${name}" ใช่หรือไม่?`)) {
+            let res = await callAPI('deleteProduct', { rowIdx: rowIdx });
+            if(res.status === "Success") { showToast("ลบสินค้าแล้ว","success"); loadAdminProducts(); }
+        }
+    }
+
+    // กล้องสแกนบาร์โค้ดสากล (เมื่ออยู่บน GitHub จะขออนุมัติเปิดกล้องได้ลื่นไหล 100%)
+    function openCameraScanner() {
+        document.getElementById('scannerModal').classList.remove('hidden');
+        if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
+        html5QrCode.start(
+            { facingMode: "environment" }, 
+            { fps: 10, qrbox: { width: 250, height: 150 } },
+            function(decodedText) {
+                document.getElementById('prodBarcode').value = decodedText;
+                showToast("สแกนสำเร็จ: " + decodedText, "success");
+                closeCameraScanner();
+            },
+            function(err) {}
+        ).catch(err => {
+            document.getElementById('reader').innerHTML = `<p class="text-red-500 p-4 font-bold">ไม่สามารถเปิดกล้องได้<br>กรุณากด Allow สิทธิ์กล้องบนเบราว์เซอร์</p>`;
+        });
+    }
+
+    function closeCameraScanner() {
+        document.getElementById('scannerModal').classList.add('hidden');
+        if (html5QrCode && html5QrCode.isScanning) html5QrCode.stop();
+    }
+
+    // หน้าประวัติบิล
+    async function loadAllHistory() {
+        let fDate = document.getElementById('filterDate').value;
+        let fId = document.getElementById('filterOrderId').value.trim();
+        let sales = await callAPI('getAllSales', { filterDate: fDate, filterOrderId: fId });
+        let container = document.getElementById('historyPageContainer');
+        container.innerHTML = '';
+        if(sales) {
+            sales.forEach(s => {
+                container.innerHTML += `<div class="p-4 bg-white border rounded-xl flex justify-between items-center shadow-sm">
+                    <div>
+                        <div class="font-bold text-lg">${s.orderId}</div>
+                        <div class="text-sm text-gray-500">${s.items}</div>
+                        <div class="text-xs text-gray-400">วันที่: ${s.timestamp}</div>
+                    </div>
+                    <div class="font-bold text-emerald-600 text-xl">฿${s.grandTotal.toFixed(2)}</div>
+                </div>`;
+            });
+        }
+    }
+
+    function showToast(msg, type="success") {
+        let container = document.getElementById('toastContainer');
+        let bg = type === "success" ? "bg-emerald-500" : "bg-red-500";
+        let toast = document.createElement('div');
+        toast.className = `${bg} text-white px-6 py-3 rounded-xl font-bold shadow-lg transition-all duration-300`;
+        toast.innerText = msg;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    // เริ่มต้นเว็บดึงข้อมูลหน้าแรกทันที
+    loadSalesProducts();
+  </script>
+</body>
+</html>
