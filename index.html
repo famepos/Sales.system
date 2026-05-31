@@ -1,96 +1,79 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/html5-qrcode"></script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap');
-    body { font-family: 'Kanit', sans-serif; background-color: #ecfdf5; color: #064e3b; margin: 0; }
-    .modern-card { background: white; border: 1px solid #d1fae5; border-radius: 1.5rem; transition: 0.2s; }
-    .modern-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.1); }
-  </style>
+    <meta charset="UTF-8">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap');
+        body { font-family: 'Kanit', sans-serif; background-color: #ecfdf5; color: #064e3b; }
+        .modern-card { background: white; border: 1px solid #d1fae5; border-radius: 1.5rem; transition: 0.2s; }
+        .modern-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.1); }
+    </style>
 </head>
-<body class="h-screen flex overflow-hidden">
+<body>
+    <div id="productGrid" class="grid grid-cols-2 lg:grid-cols-4 gap-6 p-6"></div>
 
-  <div id="toastContainer" class="fixed top-5 right-5 z-[9999] flex flex-col gap-3 pointer-events-none"></div>
-  
-<script>
-    // 🔗 สำคัญ: นำลิงก์ Web App URL ของคุณ (ที่ Deploy แล้ว) มาใส่ตรงนี้
-    const API_URL = "https://script.google.com/macros/s/AKfycbyVcq0Iz6iNGRRoTEAxae3u_Gdbf6Fy8bQ3ujvri6F3g1gibZd2ghMiqqcdHjy6bb5PUg/exec";
+    <script>
+        // 🔗 ใส่ลิงก์ Web App ของคุณที่นี่ (ต้องเป็นลิงก์ที่ Deploy ล่าสุด)
+        const API_URL = "https://script.google.com/macros/s/AKfycbyVcq0Iz6iNGRRoTEAxae3u_Gdbf6Fy8bQ3ujvri6F3g1gibZd2ghMiqqcdHjy6bb5PUg/exec";
 
-    // 1. ฟังก์ชันเชื่อมต่อ (ห้ามลบ)
-    async function callAPI(action, data = {}) {
-        try {
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                body: JSON.stringify({ action: action, data: data })
-            });
-            return await response.json();
-        } catch (error) {
-            console.error("API Error:", error);
-            showToast("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้", "error");
-            return { status: "Error" };
+        // ฟังก์ชันหัวใจสำคัญ (ใช้แทน google.script.run)
+        async function callAPI(action, data = {}) {
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: action, data: data }),
+                    mode: 'cors' // สำคัญมาก
+                });
+                return await response.json();
+            } catch (error) {
+                console.error("เกิดข้อผิดพลาด:", error);
+                return { status: "Error" };
+            }
         }
-    }
 
-    // 2. ฟังก์ชันโหลดสินค้า (แทนที่ google.script.run)
-    async function loadProducts() {
-        let data = await callAPI('getProducts');
-        if (data && Array.isArray(data)) {
-            let grid = document.getElementById('productGrid');
-            grid.innerHTML = '';
-            data.forEach(function(row) {
-                let safeName = row[1].toString().replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                let cardHtml = '<div class="modern-card p-4 cursor-pointer" onclick="addToCart(\'' + safeName + '\', ' + row[3] + ')">' +
-                    '<div class="bg-emerald-50 h-24 rounded-xl flex items-center justify-center text-4xl mb-3">🍵</div>' +
-                    '<h3 class="font-bold text-center">' + row[1] + '</h3><p class="text-emerald-600 font-bold text-center">฿' + row[3] + '</p></div>';
-                grid.innerHTML += cardHtml;
-            });
+        // 1. โหลดสินค้าหน้าขาย (ใช้ callAPI)
+        async function loadProducts() {
+            let data = await callAPI('getProducts');
+            if (data && Array.isArray(data)) {
+                let grid = document.getElementById('productGrid');
+                grid.innerHTML = '';
+                data.forEach(function(row) {
+                    // row[1]=ชื่อ, row[3]=ราคา (ปรับเลข index ตามชีทจริงของคุณ)
+                    let name = row[1] || "สินค้า";
+                    let price = row[3] || 0;
+                    let cardHtml = `<div class="modern-card p-4 cursor-pointer" onclick="addToCart('${name}', ${price})">
+                        <div class="bg-emerald-50 h-24 rounded-xl flex items-center justify-center text-4xl mb-3">🍵</div>
+                        <h3 class="font-bold text-center">${name}</h3>
+                        <p class="text-emerald-600 font-bold text-center">฿${price}</p>
+                    </div>`;
+                    grid.innerHTML += cardHtml;
+                });
+            }
         }
-    }
 
-    // 3. ฟังก์ชันบันทึกการขาย (แทนที่ google.script.run)
-    async function confirmPayment() {
-        let btn = document.getElementById('btnConfirm');
-        btn.innerText = "กำลังบันทึก..."; btn.disabled = true;
-
-        let cartData = cart.map(i => ({name: i.name, qty: i.qty, total: i.price * i.qty}));
-        let payload = {
-            cartData: cartData,
-            paymentType: selectedPayment,
-            // ... (ใส่ค่าอื่นๆ ที่คุณต้องการส่งไป)
-        };
-
-        let res = await callAPI('processSale', payload);
-
-        if(res.status === "Success") {
-            showToast("บันทึกสำเร็จ!", "success");
-            // ล้างหน้าจอหรือเปิดใบเสร็จ
+        // 2. บันทึกข้อมูลสินค้า (ใช้ callAPI)
+        async function saveProduct(productData) {
+            let res = await callAPI('saveProduct', productData);
+            if (res.status === "Success") {
+                alert("บันทึกสำเร็จ!");
+                loadProducts(); // โหลดข้อมูลใหม่หลังจากบันทึก
+            } else {
+                alert("บันทึกไม่สำเร็จ");
+            }
         }
-        btn.innerText = "ยืนยันชำระเงิน"; btn.disabled = false;
-    }
 
-    // 4. ฟังก์ชันบันทึกข้อมูลสินค้า (แทนที่ google.script.run)
-    async function saveProduct() {
-        let btn = document.getElementById('btnSaveProduct');
-        btn.innerText = "กำลังบันทึก..."; btn.disabled = true;
-        
-        // ... (ดึงข้อมูลจาก form ตามเดิม) ...
-        let data = { /* ... */ };
-        
-        let res = await callAPI('saveProduct', data);
-        
-        btn.innerText = "บันทึกข้อมูลสินค้า"; btn.disabled = false;
-        if (res.status === "Success") {
-            showToast("บันทึกสำเร็จ", "success");
-            closeProductModal();
-            loadAdminProducts(); // ฟังก์ชันนี้ต้องแก้ให้ใช้ callAPI ด้วย
+        // 3. ฟังก์ชันอื่นๆ เช่น confirmPayment (ใช้ callAPI เหมือนกัน)
+        async function confirmPayment(cartData, total) {
+            let res = await callAPI('processSale', { cart: cartData, total: total });
+            if (res.status === "Success") {
+                alert("ชำระเงินสำเร็จ");
+                cart = []; // ล้างตะกร้า
+            }
         }
-    }
 
-    // เรียกฟังก์ชันเมื่อเปิดหน้าเว็บ
-    loadProducts();
-</script>
+        // เริ่มต้นทำงานทันทีเมื่อหน้าเว็บโหลด
+        loadProducts();
+    </script>
 </body>
 </html>
