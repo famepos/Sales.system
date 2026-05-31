@@ -14,66 +14,61 @@
     <div id="productGrid" class="grid grid-cols-2 lg:grid-cols-4 gap-6 p-6"></div>
 
     <script>
-        // 🔗 ใส่ลิงก์ Web App ของคุณที่นี่ (ต้องเป็นลิงก์ที่ Deploy ล่าสุด)
-        const API_URL = "https://script.google.com/macros/s/AKfycbyVcq0Iz6iNGRRoTEAxae3u_Gdbf6Fy8bQ3ujvri6F3g1gibZd2ghMiqqcdHjy6bb5PUg/exec";
+    // 🔗 สำคัญ: นำลิงก์ Web App URL ของคุณ (ที่ Deploy แล้ว) มาใส่ตรงนี้
+    const API_URL = "https://script.google.com/macros/s/AKfycbyVcq0Iz6iNGRRoTEAxae3u_Gdbf6Fy8bQ3ujvri6F3g1gibZd2ghMiqqcdHjy6bb5PUg/exec";
 
-        // ฟังก์ชันหัวใจสำคัญ (ใช้แทน google.script.run)
-        async function callAPI(action, data = {}) {
-            try {
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({ action: action, data: data }),
-                    mode: 'cors' // สำคัญมาก
-                });
-                return await response.json();
-            } catch (error) {
-                console.error("เกิดข้อผิดพลาด:", error);
-                return { status: "Error" };
-            }
+    // 1. ฟังก์ชันเชื่อมต่อ (ใช้แทน google.script.run)
+    async function callAPI(action, data = {}) {
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: action, data: data })
+            });
+            return await response.json();
+        } catch (error) {
+            console.error("API Error:", error);
+            return { status: "Error" };
         }
+    }
 
-        // 1. โหลดสินค้าหน้าขาย (ใช้ callAPI)
-        async function loadProducts() {
-            let data = await callAPI('getProducts');
-            if (data && Array.isArray(data)) {
-                let grid = document.getElementById('productGrid');
-                grid.innerHTML = '';
-                data.forEach(function(row) {
-                    // row[1]=ชื่อ, row[3]=ราคา (ปรับเลข index ตามชีทจริงของคุณ)
-                    let name = row[1] || "สินค้า";
-                    let price = row[3] || 0;
-                    let cardHtml = `<div class="modern-card p-4 cursor-pointer" onclick="addToCart('${name}', ${price})">
-                        <div class="bg-emerald-50 h-24 rounded-xl flex items-center justify-center text-4xl mb-3">🍵</div>
-                        <h3 class="font-bold text-center">${name}</h3>
-                        <p class="text-emerald-600 font-bold text-center">฿${price}</p>
-                    </div>`;
-                    grid.innerHTML += cardHtml;
-                });
-            }
+    // 2. ฟังก์ชันโหลดสินค้า (ไม่มีตัวหมุนโหลดแล้ว)
+    async function loadProducts() {
+        let data = await callAPI('getProducts');
+        
+        // เช็คว่าได้ข้อมูลมาจริง
+        if (data && Array.isArray(data)) {
+            let grid = document.getElementById('productGrid');
+            grid.innerHTML = ''; // ล้างของเก่า
+            
+            data.forEach(function(row) {
+                // row[1]=ชื่อ, row[3]=ราคา (แก้เลข index ให้ตรงกับชีทของคุณ)
+                let name = row[1] || "สินค้า";
+                let price = row[3] || 0;
+                let safeName = name.toString().replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                
+                let cardHtml = `<div class="modern-card p-4 cursor-pointer" onclick="addToCart('${safeName}', ${price})">
+                    <div class="bg-emerald-50 h-24 rounded-xl flex items-center justify-center text-4xl mb-3">🍵</div>
+                    <h3 class="font-bold text-center">${name}</h3>
+                    <p class="text-emerald-600 font-bold text-center">฿${price}</p>
+                </div>`;
+                grid.innerHTML += cardHtml;
+            });
         }
+    }
 
-        // 2. บันทึกข้อมูลสินค้า (ใช้ callAPI)
-        async function saveProduct(productData) {
-            let res = await callAPI('saveProduct', productData);
-            if (res.status === "Success") {
-                alert("บันทึกสำเร็จ!");
-                loadProducts(); // โหลดข้อมูลใหม่หลังจากบันทึก
-            } else {
-                alert("บันทึกไม่สำเร็จ");
-            }
+    // 3. ฟังก์ชันบันทึกข้อมูลสินค้า (ตัวอย่างการเขียน)
+    async function saveProduct(data) {
+        let res = await callAPI('saveProduct', data);
+        if (res.status === "Success") {
+            alert("บันทึกสำเร็จ");
+            loadProducts(); // สั่งโหลดใหม่ทันที
         }
+    }
 
-        // 3. ฟังก์ชันอื่นๆ เช่น confirmPayment (ใช้ callAPI เหมือนกัน)
-        async function confirmPayment(cartData, total) {
-            let res = await callAPI('processSale', { cart: cartData, total: total });
-            if (res.status === "Success") {
-                alert("ชำระเงินสำเร็จ");
-                cart = []; // ล้างตะกร้า
-            }
-        }
-
-        // เริ่มต้นทำงานทันทีเมื่อหน้าเว็บโหลด
+    // เรียกฟังก์ชันเมื่อเปิดหน้าเว็บ
+    window.onload = function() {
         loadProducts();
-    </script>
+    };
+</script>
 </body>
 </html>
