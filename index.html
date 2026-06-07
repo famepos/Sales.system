@@ -68,12 +68,12 @@
   <div class="p-8 text-center text-emerald-800 font-bold text-2xl">กำลังเข้าสู่ระบบแอปพลิเคชัน...</div>
 
   <script>
-    // 🔗 ลิงก์เชื่อมโยงไปยัง Google Apps Script หลังบ้านของพี่
+    // 🚨 🟢 สเต็ปสุดท้าย: พี่ต้องทำโดเมนหลังบ้านใหม่ตามขั้นตอนด้านล่าง แล้วเอาลิงก์ URL ใหม่มาแปะในช่องนี้แทนลิงก์เก่าครับ
     const BASE_URL = "https://script.google.com/macros/s/AKfycbzCltmzwnC1g86R6jccC4yWHS6H8bjWJwX-Lc6XqYmfSAu8lQ_3CtfcSDOgHhxiRzOPfw/exec";
     let allSalesProducts = [];
     let globalBranchesList = [];
 
-    // 🟢 ฟังก์ชันทำหน้าที่ยิงขอข้อมูลข้ามค่ายผ่านระบบ JSONP แบบไม่ติดปัญหาสิทธิ์ CORS แน่นอน
+    // ฟังก์ชันทำหน้าที่ยิงขอข้อมูลข้ามค่ายผ่านระบบ JSONP แบบไม่ติดปัญหาสิทธิ์ CORS แน่นอน
     function callJsonpAPI(params, callbackName, callbackFunction) {
       window[callbackName] = function(data) {
         callbackFunction(data);
@@ -87,7 +87,6 @@
       document.body.appendChild(script);
     }
 
-    // 🟢 1. ฟังก์ชันระบบแจ้งเตือนอนิเมชั่น (Toast) แบบลอยตัดหน้าจอโฮม
     function showToast(message, type) {
       let typeStr = type || 'success';
       const container = document.getElementById('toastContainer');
@@ -115,7 +114,6 @@
       }, 3000);
     }
 
-    // 🟢 2. ฟังก์ชันตรวจสอบล็อกอิน
     function processLogin() {
       let user = document.getElementById('loginUsername').value.trim();
       let pass = document.getElementById('loginPassword').value.trim();
@@ -149,7 +147,6 @@
             showToast(`ยินดีต้อนรับคุณ ${res.name}`, "success");
             document.getElementById('loginOverlay')?.classList.add('hidden');
             
-            // สั่งโหลดฐานข้อมูลอื่นๆ มารันหน้าร้านต่อทันที
             fetchProductsViaAPI();
             fetchBranchesViaAPI();
           } else {
@@ -159,7 +156,6 @@
       );
     }
 
-    // 🟢 3. ฟังก์ชันดึงสินค้าหน้าขายผ่านระบบ JSONP
     function fetchProductsViaAPI() {
       callJsonpAPI(
         { action: "getProducts" },
@@ -173,7 +169,6 @@
       );
     }
 
-    // 🟢 4. ฟังก์ชันดึงข้อมูลสาขาร้านค้าผ่านระบบ JSONP
     function fetchBranchesViaAPI() {
       callJsonpAPI(
         { action: "getBranchesData" },
@@ -187,7 +182,6 @@
       );
     }
 
-    // 🟢 5. ฟังก์ชันดึงการตั้งค่าร้านค้าเริ่มต้นตอนเปิดแอป
     function fetchStoreSettingsViaAPI() {
       callJsonpAPI(
         { action: "getStoreSettings" },
@@ -200,11 +194,9 @@
       );
     }
 
-    // สั่งงานระบบทำงานทันทีเมื่อเปิดแอป
     window.addEventListener('load', function() {
       fetchStoreSettingsViaAPI();
       
-      // ดักตรวจสิทธิ์ความจำเดิมในเครื่องว่ามีคนเข้าค้างไว้ไหม
       let savedUser = localStorage.getItem('famepos_user');
       if (savedUser) {
         let res = JSON.parse(savedUser);
