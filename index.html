@@ -2023,6 +2023,55 @@
 
 
   <script>
+
+if (typeof google === 'undefined') {
+    window.google = { script: {} };
+    
+    // สร้างตัวดักจับคำสั่ง (Proxy) แทนที่ฝั่ง Server อัตโนมัติ
+    function createRunner(successCb, failureCb) {
+        return new Proxy({}, {
+            get: function(target, prop) {
+                // ดักจับการผูก Callback
+                if (prop === 'withFailureHandler') {
+                    return function(cb) { return createRunner(successCb, cb); };
+                }
+                if (prop === 'withSuccessHandler') {
+                    return function(cb) { return createRunner(cb, failureCb); };
+                }
+                
+                // นอกนั้นคือชื่อฟังก์ชันฝั่ง Server (เช่น getProducts, saveProduct)
+                return function(...args) {
+                    if (document.getElementById('toastContainer')) {
+                        console.log(`[API Adapter] กำลังเรียกฟังก์ชันหลังบ้าน: ${prop}`);
+                    }
+                    
+                    fetch(API_URL, {
+                        method: "POST",
+                        body: JSON.stringify({ action: prop, args: args }),
+                        headers: { "Content-Type": "text/plain;charset=utf-8" } // 👈 เลี่ยงปัญหา CORS Block
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === "Error" && failureCb) {
+                            failureCb(new Error(data.message));
+                        } else if (successCb) {
+                            successCb(data.result);
+                        }
+                    })
+                    .catch(err => {
+                        console.error("[Fetch Error]", err);
+                        if (failureCb) failureCb(err);
+                    });
+                };
+            }
+        });
+    }
+
+    // ปลั๊กตัว Adapter เข้ากับ Global Object
+    window.google.script.run = createRunner(null, null);
+}
+
+  
     // 🔗 สำคัญมาก: นำลิงก์ Web App URL ของ Google Apps Script มาวางตรงนี้ครับ
 const API_URL = "https://script.google.com/macros/s/AKfycbyVcq0Iz6iNGRRoTEAxae3u_Gdbf6Fy8bQ3ujvri6F3g1gibZd2ghMiqqcdHjy6bb5PUg/exec";
 
