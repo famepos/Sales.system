@@ -5974,81 +5974,69 @@ window.currentRole = null;
 window.currentBranch = null;
 
 function processLogin() {
-  let user = document.getElementById('loginUsername').value.trim();
-  let pass = document.getElementById('loginPassword').value.trim();
+  let user = document.getElementById('loginUsername').value.trim(); [cite: 1365]
+  let pass = document.getElementById('loginPassword').value.trim(); [cite: 1365]
   
-  if (!user || !pass) {
-    showToast("กรุณากรอกชื่อผู้ใช้/เบอร์โทรศัพท์ และรหัสผ่านให้ครบถ้วน", "error");
+  if (!user || !pass) { [cite: 1366]
+    showToast("กรุณากรอกชื่อผู้ใช้/เบอร์โทรศัพท์ และรหัสผ่านให้ครบถ้วน", "error"); [cite: 1366]
     return;
   }
   
-  let btn = document.getElementById('btnLoginSubmit');
+  let btn = document.getElementById('btnLoginSubmit'); [cite: 1368]
   if (btn) {
-    btn.innerHTML = `<span>⏳ กำลังตรวจสอบข้อมูล...</span>`;
-    btn.disabled = true;
+    btn.innerHTML = `<span>⏳ กำลังตรวจสอบข้อมูล...</span>`; [cite: 1368]
+    btn.disabled = true; [cite: 1369]
   }
   
-  // 🟢 [เปลี่ยนจุดนี้]: เปลี่ยนจาก google.script.run ไปใช้ fetch() ยิงหาลิงก์ Google Sheet ของพี่ตรงๆ
-  fetch("https://script.google.com/macros/s/AKfycbzCltmzwnC1g86R6jccC4yWHS6H8bjWJwX-Lc6XqYmfSAu8lQ_3CtfcSDOgHhxiRzOPfw/exec", {
-    method: "POST",
-    mode: "cors",
-    body: JSON.stringify({
-      action: "checkLogin",
-      username: user,
-      password: pass
-    })
-  })
-  .then(response => response.json())
-  .then(res => {
+  // 🟢 ใช้เทคนิค JSONP ทะลวงบล็อก CORS แบบ 100% แน่นอน
+  window.handleLoginResponse = function(res) {
     if (btn) {
-      btn.innerHTML = `<span>🚀 เข้าสู่ระบบร้านค้า</span>`;
-      btn.disabled = false;
+      btn.innerHTML = `<span>🚀 เข้าสู่ระบบร้านค้า</span>`; [cite: 1369]
+      btn.disabled = false; [cite: 1369]
     }
     
-    if (res && res.status === "Success") {
-      window.currentUser = res.name;
-      window.currentRole = res.role;
-      window.currentBranch = res.branch;
+    if (res && res.status === "Success") { [cite: 1369]
+      window.currentUser = res.name; [cite: 1369]
+      window.currentRole = res.role; [cite: 1370]
+      window.currentBranch = res.branch; [cite: 1370]
       
-      localStorage.setItem('famepos_user', JSON.stringify(res));
-      showToast(`ยินดีต้อนรับคุณ ${res.name}`, "success");
+      localStorage.setItem('famepos_user', JSON.stringify(res)); [cite: 1370]
+      showToast(`ยินดีต้อนรับคุณ ${res.name}`, "success"); [cite: 1370]
       
-      let loginOverlay = document.getElementById('loginOverlay');
-      if (loginOverlay) loginOverlay.classList.add('hidden');
+      let loginOverlay = document.getElementById('loginOverlay'); [cite: 1370]
+      if (loginOverlay) loginOverlay.classList.add('hidden'); [cite: 1371]
       
-      updateUserStatusUI();
-      applyRolePermissions();
-      
-      // สั่งดึงสินค้าผ่าน API ข้ามโดเมน
+      updateUserStatusUI(); [cite: 1371]
+      applyRolePermissions(); [cite: 1372]
       fetchProductsViaAPI();
     } else {
-      showToast(res.message || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง", "error");
+      showToast(res.message || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง", "error"); [cite: 1373]
     }
-  })
-  .catch(err => {
-    if (btn) {
-      btn.innerHTML = `<span>🚀 เข้าสู่ระบบร้านค้า</span>`;
-      btn.disabled = false;
-    }
-    showToast("ระบบขัดข้อง: " + err.message, "error");
-  });
+    // ลบแท็กขยะออกหลังทำงานเสร็จ
+    document.getElementById('jsonpCall')?.remove();
+  };
+
+  let script = document.createElement('script');
+  script.id = 'jsonpCall';
+  script.src = `https://script.google.com/macros/s/AKfycbzCltmzwnC1g86R6jccC4yWHS6H8bjWJwX-Lc6XqYmfSAu8lQ_3CtfcSDOgHhxiRzOPfw/exec?action=checkLogin&username=${encodeURIComponent(user)}&password=${encodeURIComponent(pass)}&callback=handleLoginResponse`;
+  document.body.appendChild(script);
 }
 
-// 🟢 [เพิ่มฟังก์ชันดึงสินค้าหน้าขายผ่าน API]: สำหรับดึงรายการชาและภาพสินค้ามาวาดบนจอเมื่ออยู่บน GitHub
 function fetchProductsViaAPI() {
-  fetch("https://script.google.com/macros/s/AKfycbzCltmzwnC1g86R6jccC4yWHS6H8bjWJwX-Lc6XqYmfSAu8lQ_3CtfcSDOgHhxiRzOPfw/exec", {
-    method: "POST",
-    body: JSON.stringify({ action: "getProducts" })
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data && data.length > 0) {
-      allSalesProducts = data;
-      let categories = [...new Set(data.map(row => row[2]).filter(c => c !== undefined && c.toString().trim() !== ""))];
-      renderCategoryButtons(categories);
-      renderProductGrid(allSalesProducts);
+  window.handleProductsResponse = function(data) {
+    if (data && data.length > 0) { [cite: 614]
+      allSalesProducts = data; [cite: 614]
+      let categories = [...new Set(data.map(row => row[2]).filter(c => c !== undefined && c.toString().trim() !== ""))]; [cite: 614]
+      renderCategoryButtons(categories); [cite: 615]
+      renderProductGrid(allSalesProducts); [cite: 615]
     }
-  });
+    document.getElementById('jsonpProducts')?.remove();
+  };
+
+  let script = document.createElement('script');
+  script.id = 'jsonpProducts';
+  script.src = `https://script.google.com/macros/s/AKfycbzCltmzwnC1g86R6jccC4yWHS6H8bjWJwX-Lc6XqYmfSAu8lQ_3CtfcSDOgHhxiRzOPfw/exec?action=getProducts&callback=handleProductsResponse`;
+  document.body.appendChild(script);
 }
 
 function updateUserStatusUI() {
