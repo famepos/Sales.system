@@ -5974,43 +5974,45 @@ window.currentRole = null;
 window.currentBranch = null;
 
 function processLogin() {
-  let user = document.getElementById('loginUsername').value.trim(); [cite: 1365]
-  let pass = document.getElementById('loginPassword').value.trim(); [cite: 1365]
+  let user = document.getElementById('loginUsername').value.trim();
+  let pass = document.getElementById('loginPassword').value.trim();
   
-  if (!user || !pass) { [cite: 1366]
-    showToast("กรุณากรอกชื่อผู้ใช้/เบอร์โทรศัพท์ และรหัสผ่านให้ครบถ้วน", "error"); [cite: 1366]
+  if (!user || !pass) {
+    showToast("กรุณากรอกชื่อผู้ใช้/เบอร์โทรศัพท์ และรหัสผ่านให้ครบถ้วน", "error");
     return;
   }
   
-  let btn = document.getElementById('btnLoginSubmit'); [cite: 1368]
+  let btn = document.getElementById('btnLoginSubmit');
   if (btn) {
-    btn.innerHTML = `<span>⏳ กำลังตรวจสอบข้อมูล...</span>`; [cite: 1368]
-    btn.disabled = true; [cite: 1369]
+    btn.innerHTML = `<span>⏳ กำลังตรวจสอบข้อมูล...</span>`;
+    btn.disabled = true;
   }
   
   // 🟢 ใช้เทคนิค JSONP ทะลวงบล็อก CORS แบบ 100% แน่นอน
   window.handleLoginResponse = function(res) {
     if (btn) {
-      btn.innerHTML = `<span>🚀 เข้าสู่ระบบร้านค้า</span>`; [cite: 1369]
-      btn.disabled = false; [cite: 1369]
+      btn.innerHTML = `<span>🚀 เข้าสู่ระบบร้านค้า</span>`;
+      btn.disabled = false;
     }
     
-    if (res && res.status === "Success") { [cite: 1369]
-      window.currentUser = res.name; [cite: 1369]
-      window.currentRole = res.role; [cite: 1370]
-      window.currentBranch = res.branch; [cite: 1370]
+    if (res && res.status === "Success") {
+      window.currentUser = res.name;
+      window.currentRole = res.role;
+      window.currentBranch = res.branch;
       
-      localStorage.setItem('famepos_user', JSON.stringify(res)); [cite: 1370]
-      showToast(`ยินดีต้อนรับคุณ ${res.name}`, "success"); [cite: 1370]
+      localStorage.setItem('famepos_user', JSON.stringify(res));
+      showToast(`ยินดีต้อนรับคุณ ${res.name}`, "success");
       
-      let loginOverlay = document.getElementById('loginOverlay'); [cite: 1370]
-      if (loginOverlay) loginOverlay.classList.add('hidden'); [cite: 1371]
+      let loginOverlay = document.getElementById('loginOverlay');
+      if (loginOverlay) loginOverlay.classList.add('hidden');
       
-      updateUserStatusUI(); [cite: 1371]
-      applyRolePermissions(); [cite: 1372]
+      updateUserStatusUI();
+      applyRolePermissions();
+      
+      // สั่งดึงสินค้าผ่าน API ข้ามโดเมน
       fetchProductsViaAPI();
     } else {
-      showToast(res.message || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง", "error"); [cite: 1373]
+      showToast(res.message || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง", "error");
     }
     // ลบแท็กขยะออกหลังทำงานเสร็จ
     document.getElementById('jsonpCall')?.remove();
@@ -6024,11 +6026,11 @@ function processLogin() {
 
 function fetchProductsViaAPI() {
   window.handleProductsResponse = function(data) {
-    if (data && data.length > 0) { [cite: 614]
-      allSalesProducts = data; [cite: 614]
-      let categories = [...new Set(data.map(row => row[2]).filter(c => c !== undefined && c.toString().trim() !== ""))]; [cite: 614]
-      renderCategoryButtons(categories); [cite: 615]
-      renderProductGrid(allSalesProducts); [cite: 615]
+    if (data && data.length > 0) {
+      allSalesProducts = data;
+      let categories = [...new Set(data.map(row => row[2]).filter(c => c !== undefined && c.toString().trim() !== ""))];
+      renderCategoryButtons(categories);
+      renderProductGrid(allSalesProducts);
     }
     document.getElementById('jsonpProducts')?.remove();
   };
