@@ -2069,9 +2069,16 @@ function showToast(message, type) {
   }, 3000);
 }
 
-    google.script.run.withSuccessHandler(function(settings) {
-      if (settings && Object.keys(settings).length > 0) updateStoreUI(settings);
-    }).getStoreSettings();
+// 🟢 เปลี่ยนมาใช้ระบบยิงตรงเข้า API แทน
+fetch("https://script.google.com/macros/s/AKfycbzCltmzwnC1g86R6jccC4yWHS6H8bjWJwX-Lc6XqYmfSAu8lQ_3CtfcSDOgHhxiRzOPfw/exec", {
+  method: "POST",
+  body: JSON.stringify({ action: "getStoreSettings" })
+})
+.then(response => response.json())
+.then(settings => {
+  if (settings && Object.keys(settings).length > 0) updateStoreUI(settings);
+})
+.catch(err => console.log("โหลดตั้งค่าร้านค้าไม่ได้:", err));
 
 // ============================================
 // ระบบโหลดสินค้า ค้นหา และหมวดหมู่แบบปุ่มกด
