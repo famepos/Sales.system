@@ -65,21 +65,68 @@
     <span class="text-gray-400 text-xs mt-6">Powered by FamePOS</span>
   </div>
 
-  <div class="p-8 text-center text-emerald-800 font-bold text-2xl">กำลังเข้าสู่ระบบแอปพลิเคชัน...</div>
+  <div class="w-20 lg:w-64 bg-white border-r border-emerald-100 p-6 flex flex-col shadow-sm z-10">
+    <h1 class="text-2xl font-bold text-emerald-600 mb-4 flex items-center gap-2">
+        <img id="sidebarLogo" src="" class="w-8 h-8 rounded-lg object-cover hidden">
+        <span id="sidebarLogoFallback" class="bg-emerald-500 text-white p-2 rounded-xl">F</span> 
+        <span id="sidebarStoreName" class="hidden lg:block truncate">FamePOS</span>
+    </h1>
+
+    <div id="digitalClockContainer" class="mb-6 hidden lg:flex flex-col p-3 bg-slate-50 rounded-2xl border border-gray-100 text-center font-semibold">
+        <div id="clockTime" class="text-xl font-bold text-emerald-700 tracking-wider">00:00:00</div>
+        <div id="clockDate" class="text-[11px] text-gray-400 mt-0.5">วันเสาร์ที่ 6 มิ.ย. 2026</div>
+    </div>
+
+    <nav class="space-y-4">
+      <a id="nav-sales" onclick="showView('sales')" class="flex items-center gap-3 text-emerald-700 bg-emerald-50 p-3 rounded-xl font-semibold cursor-pointer transition">
+        <span class="text-xl">🛒</span> <span class="hidden lg:block">ขายสินค้า</span>
+      </a>
+      <a id="nav-history" onclick="showView('history')" class="flex items-center gap-3 text-gray-500 p-3 rounded-xl hover:bg-emerald-50 hover:text-emerald-600 font-semibold cursor-pointer transition">
+        <span class="text-xl">📜</span> <span class="hidden lg:block">บิลทั้งหมด</span>
+      </a>
+      <a id="nav-products" onclick="showView('products')" class="flex items-center gap-3 text-gray-500 p-3 rounded-xl hover:bg-emerald-50 hover:text-emerald-600 font-semibold cursor-pointer transition">
+        <span class="text-xl">📑</span> <span class="hidden lg:block">จัดการสินค้า</span>
+      </a>
+    </nav>
+    <div class="mt-auto pt-6 border-t border-emerald-50 hidden lg:block">
+        <div id="userStatusContainer"></div>
+    </div>
+  </div>
+
+  <div id="salesView" class="flex w-full h-full">
+    <div class="flex-1 p-8 overflow-y-auto flex flex-col relative">
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+            <h1 class="text-2xl font-bold whitespace-nowrap">☕ เลือกสินค้า</h1>
+            <div class="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+                <input type="text" id="salesSearchInput" oninput="filterProducts()" placeholder="🔍 ค้นหาชื่อ, บาร์โค้ด..." class="p-3 rounded-xl border-2 border-emerald-100 focus:border-emerald-500 outline-none w-full sm:w-64 font-medium shadow-sm">
+            </div>
+        </div>
+        <div id="categoryButtonGroup" class="flex flex-wrap gap-2 mb-6"></div>
+        <div id="productGrid" class="grid grid-cols-2 lg:grid-cols-4 gap-6 content-start"></div>
+    </div>
+    
+    <div class="w-96 bg-white border-l border-emerald-100 p-8 flex flex-col shadow-xl z-10">
+        <h2 class="text-xl font-bold mb-6 border-b pb-4 border-emerald-100">🛒 ตะกร้าสินค้า</h2>
+        <div id="cartItems" class="flex-1 overflow-y-auto space-y-3 pr-2"></div>
+        <div class="pt-6 border-t border-emerald-100 mt-auto">
+            <div class="flex justify-between text-2xl font-bold mb-6"><span>รวม</span><span id="totalPrice" class="text-emerald-600">฿0.00</span></div>
+            <button class="w-full bg-emerald-500 text-white p-4 rounded-2xl font-bold text-lg hover:bg-emerald-600 shadow-md transition">ชำระเงิน</button>
+        </div>
+    </div>
+  </div>
 
   <script>
-    // 🚨 🟢 สเต็ปสุดท้าย: พี่ต้องทำโดเมนหลังบ้านใหม่ตามขั้นตอนด้านล่าง แล้วเอาลิงก์ URL ใหม่มาแปะในช่องนี้แทนลิงก์เก่าครับ
     const BASE_URL = "https://script.google.com/macros/s/AKfycbzCltmzwnC1g86R6jccC4yWHS6H8bjWJwX-Lc6XqYmfSAu8lQ_3CtfcSDOgHhxiRzOPfw/exec";
     let allSalesProducts = [];
     let globalBranchesList = [];
+    let cart = [];
 
-    // ฟังก์ชันทำหน้าที่ยิงขอข้อมูลข้ามค่ายผ่านระบบ JSONP แบบไม่ติดปัญหาสิทธิ์ CORS แน่นอน
+    // ฟังก์ชันยิงข้ามค่ายผ่านระบบ JSONP แบบสมบูรณ์
     function callJsonpAPI(params, callbackName, callbackFunction) {
       window[callbackName] = function(data) {
         callbackFunction(data);
         document.getElementById(callbackName)?.remove();
       };
-
       let queryStr = Object.keys(params).map(k => `${k}=${encodeURIComponent(params[k])}`).join('&');
       let script = document.createElement('script');
       script.id = callbackName;
@@ -91,121 +138,70 @@
       let typeStr = type || 'success';
       const container = document.getElementById('toastContainer');
       if (!container) return; 
-      
       const toast = document.createElement('div');
-      if (typeStr === 'success') {
-        toast.className = 'flex items-center gap-3 bg-emerald-600 text-white px-6 py-4 rounded-2xl shadow-2xl transform transition-all duration-300 translate-x-full opacity-0 pointer-events-auto font-bold text-lg';
-        toast.innerHTML = '<span class="text-xl">✅</span> <span>' + message + '</span>';
-      } else {
-        toast.className = 'flex items-center gap-3 bg-red-500 text-white px-6 py-4 rounded-2xl shadow-2xl transform transition-all duration-300 translate-x-full opacity-0 pointer-events-auto font-bold text-lg';
-        toast.innerHTML = '<span class="text-xl">❌</span> <span>' + message + '</span>';
-      }
-      
+      toast.className = typeStr === 'success' ? 'flex items-center gap-3 bg-emerald-600 text-white px-6 py-4 rounded-2xl shadow-2xl transform transition-all duration-300 translate-x-full opacity-0 pointer-events-auto font-bold text-lg' : 'flex items-center gap-3 bg-red-500 text-white px-6 py-4 rounded-2xl shadow-2xl transform transition-all duration-300 translate-x-full opacity-0 pointer-events-auto font-bold text-lg';
+      toast.innerHTML = typeStr === 'success' ? '<span class="text-xl">✅</span> <span>' + message + '</span>' : '<span class="text-xl">❌</span> <span>' + message + '</span>';
       container.appendChild(toast);
-      setTimeout(() => { 
-        toast.classList.remove('translate-x-full', 'opacity-0'); 
-        toast.classList.add('translate-x-0', 'opacity-100'); 
-      }, 50);
-      
-      setTimeout(() => { 
-        toast.classList.remove('translate-x-0', 'opacity-100'); 
-        toast.classList.add('translate-x-full', 'opacity-0'); 
-        setTimeout(() => { toast.remove(); }, 300); 
-      }, 3000);
+      setTimeout(() => { toast.classList.remove('translate-x-full', 'opacity-0'); toast.classList.add('translate-x-0', 'opacity-100'); }, 50);
+      setTimeout(() => { toast.classList.remove('translate-x-0', 'opacity-100'); toast.classList.add('translate-x-full', 'opacity-0'); setTimeout(() => { toast.remove(); }, 300); }, 3000);
     }
 
     function processLogin() {
       let user = document.getElementById('loginUsername').value.trim();
       let pass = document.getElementById('loginPassword').value.trim();
-      
-      if (!user || !pass) {
-        showToast("กรุณากรอกชื่อผู้ใช้/เบอร์โทรศัพท์ และรหัสผ่านให้ครบถ้วน", "error");
-        return;
-      }
-      
+      if (!user || !pass) { showToast("กรุณากรอกข้อมูลให้ครบถ้วน", "error"); return; }
       let btn = document.getElementById('btnLoginSubmit');
-      if (btn) {
-        btn.innerHTML = `<span>⏳ กำลังตรวจสอบข้อมูล...</span>`;
-        btn.disabled = true;
-      }
+      if (btn) { btn.innerHTML = `<span>⏳ ตรวจสอบ...</span>`; btn.disabled = true; }
       
-      callJsonpAPI(
-        { action: "checkLogin", username: user, password: pass },
-        "handleLogin",
-        function(res) {
-          if (btn) {
-            btn.innerHTML = `<span>🚀 เข้าสู่ระบบร้านค้า</span>`;
-            btn.disabled = false;
-          }
-          
-          if (res && res.status === "Success") {
-            window.currentUser = res.name;
-            window.currentRole = res.role;
-            window.currentBranch = res.branch;
-            
-            localStorage.setItem('famepos_user', JSON.stringify(res));
-            showToast(`ยินดีต้อนรับคุณ ${res.name}`, "success");
-            document.getElementById('loginOverlay')?.classList.add('hidden');
-            
-            fetchProductsViaAPI();
-            fetchBranchesViaAPI();
-          } else {
-            showToast(res.message || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง", "error");
-          }
-        }
-      );
+      callJsonpAPI({ action: "checkLogin", username: user, password: pass }, "handleLogin", function(res) {
+        if (btn) { btn.innerHTML = `<span>🚀 เข้าสู่ระบบร้านค้า</span>`; btn.disabled = false; }
+        if (res && res.status === "Success") {
+          window.currentUser = res.name; window.currentRole = res.role; window.currentBranch = res.branch;
+          localStorage.setItem('famepos_user', JSON.stringify(res));
+          showToast(`ยินดีต้อนรับคุณ ${res.name}`, "success");
+          document.getElementById('loginOverlay')?.classList.add('hidden');
+          fetchProductsViaAPI();
+          fetchBranchesViaAPI();
+        } else { showToast(res.message || "รหัสผ่านไม่ถูกต้อง", "error"); }
+      });
     }
 
     function fetchProductsViaAPI() {
-      callJsonpAPI(
-        { action: "getProducts" },
-        "handleProducts",
-        function(data) {
-          if (data && data.length > 0) {
-            allSalesProducts = data;
-            console.log("โหลดข้อมูลสินค้าสำเร็จ!", data.length, "รายการ");
-          }
+      callJsonpAPI({ action: "getProducts" }, "handleProducts", function(data) {
+        if (data && data.length > 0) {
+          allSalesProducts = data;
+          renderProductGrid(data);
         }
-      );
+      });
     }
 
-    function fetchBranchesViaAPI() {
-      callJsonpAPI(
-        { action: "getBranchesData" },
-        "handleBranches",
-        function(data) {
-          if (data) {
-            globalBranchesList = data;
-            console.log("โหลดข้อมูลสาขาสำเร็จ!");
-          }
-        }
-      );
+    function renderProductGrid(data) {
+      let grid = document.getElementById('productGrid');
+      if (!grid) return;
+      let html = '';
+      data.forEach(row => {
+        let name = row[1] || "ไม่มีชื่อ"; let price = row[3] || 0; let imageUrl = row[8] || "";
+        let imgTag = imageUrl ? `<img src="${imageUrl}" class="w-full h-full object-cover rounded-xl">` : `<div class="bg-emerald-50 w-full h-full rounded-xl flex items-center justify-center text-4xl">📦</div>`;
+        html += `<div class="modern-card p-4 cursor-pointer flex flex-col h-full bg-white relative">
+            <div class="h-28 w-full mb-3 flex items-center justify-center overflow-hidden rounded-xl bg-white relative">${imgTag}</div>
+            <h3 class="font-bold text-center text-gray-800 text-sm">${name}</h3>
+            <p class="text-emerald-600 font-bold text-center mt-auto text-lg">฿${parseFloat(price).toFixed(2)}</p>
+        </div>`;
+      });
+      grid.innerHTML = html;
     }
 
-    function fetchStoreSettingsViaAPI() {
-      callJsonpAPI(
-        { action: "getStoreSettings" },
-        "handleStoreSettings",
-        function(settings) {
-          if (settings) {
-            console.log("โหลดข้อมูลการตั้งค่าร้านค้าเริ่มต้นเรียบร้อย!");
-          }
-        }
-      );
-    }
+    function fetchBranchesViaAPI() { callJsonpAPI({ action: "getBranchesData" }, "handleBranches", function(data) { if (data) globalBranchesList = data; }); }
+    function fetchStoreSettingsViaAPI() { callJsonpAPI({ action: "getStoreSettings" }, "handleStoreSettings", function(settings) { if (settings) console.log("โหลดข้อมูลร้านสำเร็จ"); }); }
 
     window.addEventListener('load', function() {
       fetchStoreSettingsViaAPI();
-      
       let savedUser = localStorage.getItem('famepos_user');
       if (savedUser) {
         let res = JSON.parse(savedUser);
-        window.currentUser = res.name;
-        window.currentRole = res.role;
-        window.currentBranch = res.branch;
+        window.currentUser = res.name; window.currentRole = res.role; window.currentBranch = res.branch;
         document.getElementById('loginOverlay')?.classList.add('hidden');
-        fetchProductsViaAPI();
-        fetchBranchesViaAPI();
+        fetchProductsViaAPI(); fetchBranchesViaAPI();
       }
     });
   </script>
