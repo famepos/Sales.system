@@ -78,13 +78,13 @@
     </div>
 
     <nav class="space-y-4">
-      <a id="nav-sales" onclick="showView('sales')" class="flex items-center gap-3 text-emerald-700 bg-emerald-50 p-3 rounded-xl font-semibold cursor-pointer transition">
+      <a id="nav-sales" class="flex items-center gap-3 text-emerald-700 bg-emerald-50 p-3 rounded-xl font-semibold cursor-pointer transition">
         <span class="text-xl">🛒</span> <span class="hidden lg:block">ขายสินค้า</span>
       </a>
-      <a id="nav-history" onclick="showView('history')" class="flex items-center gap-3 text-gray-500 p-3 rounded-xl hover:bg-emerald-50 hover:text-emerald-600 font-semibold cursor-pointer transition">
+      <a id="nav-history" class="flex items-center gap-3 text-gray-500 p-3 rounded-xl hover:bg-emerald-50 hover:text-emerald-600 font-semibold cursor-pointer transition">
         <span class="text-xl">📜</span> <span class="hidden lg:block">บิลทั้งหมด</span>
       </a>
-      <a id="nav-products" onclick="showView('products')" class="flex items-center gap-3 text-gray-500 p-3 rounded-xl hover:bg-emerald-50 hover:text-emerald-600 font-semibold cursor-pointer transition">
+      <a id="nav-products" class="flex items-center gap-3 text-gray-500 p-3 rounded-xl hover:bg-emerald-50 hover:text-emerald-600 font-semibold cursor-pointer transition">
         <span class="text-xl">📑</span> <span class="hidden lg:block">จัดการสินค้า</span>
       </a>
     </nav>
@@ -121,7 +121,6 @@
     let globalBranchesList = [];
     let cart = [];
 
-    // ฟังก์ชันยิงข้ามค่ายผ่านระบบ JSONP แบบสมบูรณ์
     function callJsonpAPI(params, callbackName, callbackFunction) {
       window[callbackName] = function(data) {
         callbackFunction(data);
