@@ -6054,7 +6054,7 @@ function processLogin() {
       } else {
         // 🚀 ดักจับข้อความแจ้งเตือนผิดพลาดจากระบบ Server ส่งขึ้น Toast สีแดงทันที!
         let errorMsg = (res && res.message) ? res.message : "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง"; 
-        showToast(errorMsg, "error"); [cite: 3187]
+        showToast(errorMsg, "error"); 
       }
     })
     .withFailureHandler(function(err) {
