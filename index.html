@@ -2637,33 +2637,43 @@ function setPaymentType(type) {
            else btn.className = "flex-1 min-w-[80px] p-3 rounded-xl border-2 border-gray-200 text-gray-500 font-bold bg-white transition";
          }
     });
+    
     let cashSec = document.getElementById('cashSection');
     let numpad = document.getElementById('numpadSection');
+    // 🟢 ดึงเฉพาะปุ่มตัวเลขทั้งหมด (ยกเว้นปุ่มยืนยัน btnConfirm)
+    let numBtns = numpad.querySelectorAll('button:not(#btnConfirm)');
+    
+    // รีเซ็ต Numpad ให้กลับมาสว่างและกดได้ทั้งหมดก่อน
+    numpad.style.opacity = "1";
+    numpad.style.pointerEvents = "auto";
+    numBtns.forEach(b => {
+         b.style.opacity = "1";
+         b.style.pointerEvents = "auto";
+    });
     
     if (type === 'เงินสด') {
         currentCash = "0";
         cashSec.classList.remove('hidden'); 
-        numpad.style.opacity = "1"; 
-        numpad.style.pointerEvents = "auto";
         clearInterval(qrTimerInterval);
     } 
     else if (type === 'คนละครึ่ง') {
-        // 🟢 แยกออกมา: แสดงช่องเงินรับมา แต่ให้ปิด Numpad ไว้เพราะระบบเติมเลขอัตโนมัติให้แล้ว
         cashSec.classList.remove('hidden'); 
-        numpad.style.opacity = "0.4"; 
-        numpad.style.pointerEvents = "none";
+        // 🟢 สั่งล็อคและทำสีจาง "เฉพาะปุ่มตัวเลข" (ปุ่มยืนยันจะยังกดได้ตามปกติ)
+        numBtns.forEach(b => {
+             b.style.opacity = "0.4";
+             b.style.pointerEvents = "none";
+        });
         clearInterval(qrTimerInterval);
     }
     else if (type === 'โอนเงิน') {
         cashSec.classList.add('hidden');
+        // หน้าโอนเงิน ปิดทั้งกล่อง Numpad ได้เลย เพราะไปกดยืนยันที่หน้า QR แทน
         numpad.style.opacity = "0.4"; 
         numpad.style.pointerEvents = "none";
         openQRModal();
     } 
     else if (type === 'แบ่งจ่าย') {
         cashSec.classList.remove('hidden');
-        numpad.style.opacity = "1"; 
-        numpad.style.pointerEvents = "auto";
         openQRModal(); 
     }
     calculateChange();
@@ -2800,12 +2810,15 @@ function calculateChange() {
     document.getElementById('changeAmount').innerText = (change > 0 && selectedPayment !== 'แบ่งจ่าย' ? change.toFixed(2) : "0.00");
 }
 
-    function handleNum(num) {
-      if (num === 'C') currentCash = "0";
-      else if (num === '⌫') currentCash = currentCash.length > 1 ? currentCash.slice(0, -1) : "0";
-      else currentCash = currentCash === "0" ? String(num) : currentCash + num;
-      calculateChange();
-    }
+function handleNum(num) {
+    // 🟢 ดักจับ: ถ้าเลือกโอนเงินหรือคนละครึ่งอยู่ ห้ามพิมพ์เลขเข้ามาเด็ดขาด
+    if (selectedPayment === 'โอนเงิน' || selectedPayment === 'คนละครึ่ง') return;
+    
+    if (num === 'C') currentCash = "0";
+    else if (num === '⌫') currentCash = currentCash.length > 1 ? currentCash.slice(0, -1) : "0";
+    else currentCash = currentCash === "0" ? String(num) : currentCash + num;
+    calculateChange();
+}
 
     document.addEventListener('keydown', function(e) {
       if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT') return; 
