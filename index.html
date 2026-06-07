@@ -5966,13 +5966,8 @@ function processLogin() {
   let user = document.getElementById('loginUsername').value.trim();
   let pass = document.getElementById('loginPassword').value.trim();
   
-  // 🟢 1. ตรวจสอบกรณีลืมกรอกข้อมูล (สั่งให้ Toast แจ้งเตือนทันทีโดยไม่ต้องรอ Server)
   if (!user || !pass) {
-    if (typeof showToast === "function") {
-      showToast("กรุณากรอกชื่อผู้ใช้/เบอร์โทรศัพท์ และรหัสผ่านให้ครบถ้วน", "error");
-    } else {
-      alert("กรุณากรอกชื่อผู้ใช้/เบอร์โทรศัพท์ และรหัสผ่านให้ครบถ้วน");
-    }
+    showToast("กรุณากรอกชื่อผู้ใช้/เบอร์โทรศัพท์ และรหัสผ่านให้ครบถ้วน", "error");
     return;
   }
   
@@ -5982,56 +5977,67 @@ function processLogin() {
     btn.disabled = true;
   }
   
-  // 🟢 2. เรียกเซิร์ฟเวอร์หลังบ้านเพื่อทำการตรวจสอบรหัส
-  google.script.run
-    .withSuccessHandler(function(res) {
-      if (btn) {
-        btn.innerHTML = `<span>🚀 เข้าสู่ระบบร้านค้า</span>`;
-        btn.disabled = false;
-      }
+  // 🟢 [เปลี่ยนจุดนี้]: เปลี่ยนจาก google.script.run ไปใช้ fetch() ยิงหาลิงก์ Google Sheet ของพี่ตรงๆ
+  fetch("https://script.google.com/macros/s/AKfycbzCltmzwnC1g86R6jccC4yWHS6H8bjWJwX-Lc6XqYmfSAu8lQ_3CtfcSDOgHhxiRzOPfw/exec", {
+    method: "POST",
+    mode: "cors",
+    body: JSON.stringify({
+      action: "checkLogin",
+      username: user,
+      password: pass
+    })
+  })
+  .then(response => response.json())
+  .then(res => {
+    if (btn) {
+      btn.innerHTML = `<span>🚀 เข้าสู่ระบบร้านค้า</span>`;
+      btn.disabled = false;
+    }
+    
+    if (res && res.status === "Success") {
+      window.currentUser = res.name;
+      window.currentRole = res.role;
+      window.currentBranch = res.branch;
       
-      // 🟢 3. ดักจับผลลัพธ์ที่ Server ส่งกลับมา
-      if (res && res.status === "Success") {
-        window.currentUser = res.name;
-        window.currentRole = res.role;
-        window.currentBranch = res.branch; 
-        
-        localStorage.setItem('famepos_user', JSON.stringify(res));
-        
-        if (typeof showToast === "function") {
-          showToast(`ยินดีต้อนรับคุณ ${res.name}`, "success");
-        }
-        
-        let loginOverlay = document.getElementById('loginOverlay');
-        if (loginOverlay) loginOverlay.classList.add('hidden');
-        
-        if (typeof updateUserStatusUI === "function") updateUserStatusUI();
-        if (typeof applyRolePermissions === "function") applyRolePermissions();
-        if (typeof loadProducts === "function") loadProducts(); 
-        if (typeof loadShiftHistory === "function") loadShiftHistory();
-        
-      } else {
-        // 🚨 [จุดแก้ไขหลัก]: ดึงข้อความเตือนผิดพลาดจริงจากระบบ Server (res.message) มาแสดงบน Toast สีแดง
-        let errorMsg = (res && res.message) ? res.message : "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง";
-        if (typeof showToast === "function") {
-          showToast(errorMsg, "error");
-        } else {
-          alert(errorMsg);
-        }
-      }
-    })
-    .withFailureHandler(function(err) {
-      if (btn) {
-        btn.innerHTML = `<span>🚀 เข้าสู่ระบบร้านค้า</span>`;
-        btn.disabled = false;
-      }
-      if (typeof showToast === "function") {
-        showToast("ระบบขัดข้อง: " + err.message, "error");
-      } else {
-        alert("ระบบขัดข้อง: " + err.message);
-      }
-    })
-    .checkLoginGS(user, pass);
+      localStorage.setItem('famepos_user', JSON.stringify(res));
+      showToast(`ยินดีต้อนรับคุณ ${res.name}`, "success");
+      
+      let loginOverlay = document.getElementById('loginOverlay');
+      if (loginOverlay) loginOverlay.classList.add('hidden');
+      
+      updateUserStatusUI();
+      applyRolePermissions();
+      
+      // สั่งดึงสินค้าผ่าน API ข้ามโดเมน
+      fetchProductsViaAPI();
+    } else {
+      showToast(res.message || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง", "error");
+    }
+  })
+  .catch(err => {
+    if (btn) {
+      btn.innerHTML = `<span>🚀 เข้าสู่ระบบร้านค้า</span>`;
+      btn.disabled = false;
+    }
+    showToast("ระบบขัดข้อง: " + err.message, "error");
+  });
+}
+
+// 🟢 [เพิ่มฟังก์ชันดึงสินค้าหน้าขายผ่าน API]: สำหรับดึงรายการชาและภาพสินค้ามาวาดบนจอเมื่ออยู่บน GitHub
+function fetchProductsViaAPI() {
+  fetch("https://script.google.com/macros/s/AKfycbzCltmzwnC1g86R6jccC4yWHS6H8bjWJwX-Lc6XqYmfSAu8lQ_3CtfcSDOgHhxiRzOPfw/exec", {
+    method: "POST",
+    body: JSON.stringify({ action: "getProducts" })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data && data.length > 0) {
+      allSalesProducts = data;
+      let categories = [...new Set(data.map(row => row[2]).filter(c => c !== undefined && c.toString().trim() !== ""))];
+      renderCategoryButtons(categories);
+      renderProductGrid(allSalesProducts);
+    }
+  });
 }
 
 function updateUserStatusUI() {
