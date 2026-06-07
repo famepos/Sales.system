@@ -1107,7 +1107,7 @@
 
           <!-- Toggle คนละครึ่ง -->
           <div class="flex justify-between items-center bg-gray-50 p-5 rounded-xl border border-gray-100">
-            <span class="font-bold text-lg text-gray-700">🇹🇭 คนละครึ่ง</span>
+            <span class="font-bold text-lg text-gray-700">คนละครึ่ง</span>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" id="toggleHalf" class="sr-only peer">
               <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
@@ -2637,17 +2637,23 @@ function setPaymentType(type) {
            else btn.className = "flex-1 min-w-[80px] p-3 rounded-xl border-2 border-gray-200 text-gray-500 font-bold bg-white transition";
          }
     });
-
     let cashSec = document.getElementById('cashSection');
     let numpad = document.getElementById('numpadSection');
     
-    if (type === 'เงินสด' || type === 'คนละครึ่ง') {
+    if (type === 'เงินสด') {
         currentCash = "0";
         cashSec.classList.remove('hidden'); 
         numpad.style.opacity = "1"; 
         numpad.style.pointerEvents = "auto";
         clearInterval(qrTimerInterval);
     } 
+    else if (type === 'คนละครึ่ง') {
+        // 🟢 แยกออกมา: แสดงช่องเงินรับมา แต่ให้ปิด Numpad ไว้เพราะระบบเติมเลขอัตโนมัติให้แล้ว
+        cashSec.classList.remove('hidden'); 
+        numpad.style.opacity = "0.4"; 
+        numpad.style.pointerEvents = "none";
+        clearInterval(qrTimerInterval);
+    }
     else if (type === 'โอนเงิน') {
         cashSec.classList.add('hidden');
         numpad.style.opacity = "0.4"; 
@@ -2667,21 +2673,17 @@ function calculateChange() {
     let subTot = parseFloat(document.getElementById('totalPrice').innerText.replace('฿', '')) || 0;
     let disc = parseFloat(document.getElementById('discountInput').value) || 0;
 
-    // --- 1. เพิ่มส่วนนี้เข้าไปเพื่อ ซ่อน/โชว์ กล่องหลัก ---
     let summaryBox = document.getElementById('taxServiceSummary');
     if (summaryBox) {
-        // ถ้าเปิดใช้อย่างใดอย่างหนึ่ง ให้แสดงกล่อง
         if (globalStoreSettings.enableTax || globalStoreSettings.enableService) {
             summaryBox.classList.remove('hidden');
         } else {
-            // ถ้าปิดหมด ให้ซ่อนกล่องทิ้งไปเลย จะได้ไม่กินพื้นที่
-            summaryBox.classList.add('hidden'); 
+            summaryBox.classList.add('hidden');
         }
     }
 
-
     // 1. คำนวณภาษี
-let tax = 0;
+    let tax = 0;
     let taxEl = document.getElementById('taxRow');
     if (globalStoreSettings.enableTax) {
         if (globalStoreSettings.taxType === 'percent') {
@@ -2689,15 +2691,15 @@ let tax = 0;
         } else {
             tax = parseFloat(globalStoreSettings.taxAmount || 0);
         }
-        if(taxEl) taxEl.classList.remove('hidden'); // ถ้าเปิด ให้โชว์
+        if(taxEl) taxEl.classList.remove('hidden');
         document.getElementById('displayTax').innerText = "฿" + tax.toFixed(2);
     } else {
-        if(taxEl) taxEl.classList.add('hidden'); // ถ้าปิด ให้ซ่อนแถวไปเลย
+        if(taxEl) taxEl.classList.add('hidden');
     }
 
     // 2. คำนวณค่าบริการ
     let service = 0;
-    let serviceRowEl = document.getElementById('serviceRow'); // ต้องเพิ่ม ID นี้ที่ HTML
+    let serviceRowEl = document.getElementById('serviceRow'); 
     if (globalStoreSettings.enableService) {
         if (globalStoreSettings.serviceType === 'fixed') {
             service = parseFloat(globalStoreSettings.serviceValue || 0);
@@ -2707,67 +2709,58 @@ let tax = 0;
         if(serviceRowEl) serviceRowEl.classList.remove('hidden');
         document.getElementById('displayService').innerText = "฿" + service.toFixed(2);
     } else {
-        if(serviceRowEl) serviceRowEl.classList.add('hidden'); // ถ้าปิด ให้ซ่อน
+        if(serviceRowEl) serviceRowEl.classList.add('hidden');
     }
 
-    // 3. แสดงผลใน UI (ตรวจสอบก่อนอัปเดตเพื่อป้องกัน Error)
+    // 3. แสดงผลใน UI
     const displayTax = document.getElementById('displayTax');
     if (displayTax) displayTax.innerText = "฿" + tax.toFixed(2);
     
     const displayService = document.getElementById('displayService');
     if (displayService) displayService.innerText = "฿" + service.toFixed(2);
 
-
-// (แทรกใน calculateChange())
     let manualDiscount = parseFloat(document.getElementById('discountInput').value) || 0;
-    
-// คำนวณส่วนลดจากแต้ม
     let usedPoints = parseInt(document.getElementById('usePointsInput')?.value) || 0;
     let pointDiscount = 0;
     let cnf = window.pointConfig;
     if(cnf && cnf.redeemPoint > 0) {
-        // 👇 เอา Math.floor ออก เพื่อให้คำนวณคูณตามจริงเป๊ะๆ
         pointDiscount = (usedPoints / cnf.redeemPoint) * cnf.redeemBaht;
     }
 
-let pDisp = document.getElementById('pointDiscountDisplay');
+    let pDisp = document.getElementById('pointDiscountDisplay');
     if(pDisp) {
         if(pointDiscount > 0) {
             document.getElementById('pointDiscountValue').innerText = pointDiscount.toFixed(2);
             pDisp.classList.remove('hidden');
         } else { pDisp.classList.add('hidden'); }
     }
-    // รวมส่วนลดกรอกเอง + ส่วนลดแต้ม
+    
     let totalDiscount = manualDiscount + pointDiscount;
-
-    // จากนั้นแก้สูตร grandTot เดิมให้หัก totalDiscount แทน:
     let grandTot = subTot - totalDiscount + tax + service;
     if (grandTot < 0) grandTot = 0;
 
     document.getElementById('modalSubTotal').innerText = "฿" + subTot.toFixed(2);
     document.getElementById('modalGrandTotal').innerText = "฿" + grandTot.toFixed(2);
 
- // ซ่อน/โชว์ช่องกรอกค่าบริการตาม Settings
-const manualContainer = document.getElementById('manualServiceContainer');
-if (manualContainer) {
-    if (globalStoreSettings.enableService && globalStoreSettings.serviceType === 'manual') {
-        manualContainer.classList.remove('hidden'); // ต้องเอา class hidden ออก
-    } else {
-        manualContainer.classList.add('hidden'); // ถ้าไม่ใช่ manual ต้องซ่อน
+    const manualContainer = document.getElementById('manualServiceContainer');
+    if (manualContainer) {
+        if (globalStoreSettings.enableService && globalStoreSettings.serviceType === 'manual') {
+            manualContainer.classList.remove('hidden');
+        } else {
+            manualContainer.classList.add('hidden');
+        }
     }
-}
     
     // 6. คำนวณส่วนชำระเงิน
     let cash = parseFloat(currentCash) || 0;
     let remainingForQR = grandTot - cash;
     if (remainingForQR < 0) remainingForQR = 0;
 
-let ppNum = globalStoreSettings.promptPay || "";
+    let ppNum = globalStoreSettings.promptPay || "";
     if (selectedPayment === 'โอนเงิน') {
         currentCash = grandTot.toString(); 
         document.getElementById('cashInput').innerText = currentCash;
         if (ppNum) {
-            // ชี้ไปที่รูปใน Modal แทน
             let qrImg = document.getElementById('qrModalImage');
             if (qrImg) qrImg.src = 'https://promptpay.io/' + ppNum + '/' + grandTot.toFixed(2) + '.png';
             
@@ -2779,10 +2772,15 @@ let ppNum = globalStoreSettings.promptPay || "";
             let qrAmt = document.getElementById('qrModalAmount');
             if (qrAmt) qrAmt.innerText = "ยังไม่ได้ตั้งค่าพร้อมเพย์";
         }
-    } else if (selectedPayment === 'แบ่งจ่าย') {
+    } 
+    else if (selectedPayment === 'คนละครึ่ง') {
+        // 🟢 ดึงยอดสุทธิ(grandTot) ไปยัดใส่ยอดรับเงินอัตโนมัติ 
+        currentCash = grandTot.toString(); 
+        document.getElementById('cashInput').innerText = currentCash;
+    }
+    else if (selectedPayment === 'แบ่งจ่าย') {
         document.getElementById('cashInput').innerText = currentCash;
         if (ppNum) {
-            // ชี้ไปที่รูปใน Modal แทน
             let qrImg = document.getElementById('qrModalImage');
             if (qrImg) qrImg.src = 'https://promptpay.io/' + ppNum + '/' + remainingForQR.toFixed(2) + '.png';
             
@@ -2797,6 +2795,7 @@ let ppNum = globalStoreSettings.promptPay || "";
     }
 
     // 7. คำนวณเงินทอน
+    cash = parseFloat(currentCash) || 0; // 🟢 ดึงเลขใหม่เผื่อถูกอัปเดตอัตโนมัติจากคนละครึ่ง
     let change = cash - grandTot;
     document.getElementById('changeAmount').innerText = (change > 0 && selectedPayment !== 'แบ่งจ่าย' ? change.toFixed(2) : "0.00");
 }
