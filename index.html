@@ -2981,7 +2981,6 @@ function updateTimerDisplay() {
 
 
     function refreshQR() { calculateChange(); startQRTimer(); }
-
 function confirmPayment() {
     let grandTotal = parseFloat(document.getElementById('modalGrandTotal').innerText.replace('฿', '').replace(',', '')) || 0;
     let subTot = parseFloat(document.getElementById('modalSubTotal').innerText.replace('฿', '').replace(',', '')) || 0;
@@ -3094,7 +3093,7 @@ function confirmPayment() {
         if(btnQR) { btnQR.innerText = "ชำระเงินแล้ว"; btnQR.disabled = false; }
     }
 
-   // ✅ ฟังก์ชันบันทึกบิลเก็บไว้ในเครื่อง (Offline Mode)
+    // ✅ ฟังก์ชันบันทึกบิลเก็บไว้ในเครื่อง (Offline Mode)
     function handleOfflineMode() {
         let payload = {
             cartData: cartData, selectedPayment: selectedPayment, currentCash: currentCash, changeStr: changeStr, 
@@ -3140,6 +3139,37 @@ function confirmPayment() {
             })
             .processSale(cartData, selectedPayment, currentCash, changeStr, totalDiscountForDB, phone, exactCash, exactTransfer, tax, service, usedPoints, currentUserLog, currentBranchLog);
     }
+}
+function finishRealTime() {
+
+  document.getElementById('receiptModal').classList.add('hidden');
+
+  cart = []; 
+
+  updateCartUI(); 
+
+  currentCash = "0";
+
+  
+
+  // เพิ่มบรรทัดนี้เพื่อล้างช่องกรอกค่าบริการ
+
+  document.getElementById('manualServiceInput').value = ""; 
+
+  
+
+  document.getElementById('cashInput').innerText = "0"; 
+
+  document.getElementById('discountInput').value = "0";
+
+  document.getElementById('customerPhone').value = "";
+
+  
+
+  clearInterval(qrTimerInterval); 
+
+  calculateChange(); // เรียกคำนวณใหม่เพื่อให้ยอดค่าบริการกลับเป็น 0
+
 }
 // ✅ ฟังก์ชันช่วยจัดการ UI ใบเสร็จ (ใช้ร่วมกันทั้งตอน Online และ Offline)
     function processReceiptUI(res) {
@@ -3210,22 +3240,6 @@ function confirmPayment() {
         if(btnQR) { btnQR.innerText = "ชำระเงินแล้ว"; btnQR.disabled = false; }
     }
     
-function finishRealTime() {
-  document.getElementById('receiptModal').classList.add('hidden');
-  cart = []; 
-  updateCartUI(); 
-  currentCash = "0";
-  
-  // เพิ่มบรรทัดนี้เพื่อล้างช่องกรอกค่าบริการ
-  document.getElementById('manualServiceInput').value = ""; 
-  
-  document.getElementById('cashInput').innerText = "0"; 
-  document.getElementById('discountInput').value = "0";
-  document.getElementById('customerPhone').value = "";
-  
-  clearInterval(qrTimerInterval); 
-  calculateChange(); // เรียกคำนวณใหม่เพื่อให้ยอดค่าบริการกลับเป็น 0
-}
 
 function toggleDropdown() { document.getElementById('dropdownMenu').classList.toggle('hidden'); }
 
