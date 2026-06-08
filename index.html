@@ -118,8 +118,8 @@
   <span class="text-gray-400 text-xs mt-6">Powered by FamePOS</span>
 </div>
 
-  <div class="w-20 lg:w-64 bg-white border-r border-emerald-100 p-6 flex flex-col shadow-sm z-10">
-    <h1 class="text-2xl font-bold text-emerald-600 mb-4 flex items-center gap-2">
+<div class="w-[72px] lg:w-64 bg-white border-r border-emerald-100 p-2 py-6 lg:p-6 flex flex-col items-center lg:items-stretch shadow-sm z-10">
+  <h1 class="text-2xl font-bold text-emerald-600 mb-4 flex items-center gap-2">
         <img id="sidebarLogo" src="" class="w-8 h-8 rounded-lg object-cover hidden">
         <span id="sidebarLogoFallback" class="bg-emerald-500 text-white p-2 rounded-xl">F</span> 
         <span id="sidebarStoreName" class="hidden lg:block truncate">FamePOS</span>
@@ -159,8 +159,8 @@
     </div>
   </div> <div id="salesView" class="flex w-full h-full overflow-hidden relative">
     
-    <div class="flex-1 p-4 lg:p-8 overflow-y-auto flex flex-col relative h-full">
-        <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+<div class="flex-1 p-2 lg:p-8 overflow-y-auto flex flex-col relative h-full">
+  <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
             <h1 class="text-2xl font-bold whitespace-nowrap">☕ เลือกสินค้า</h1>
             
             <div class="flex flex-wrap items-center gap-3 w-full xl:w-auto">
@@ -173,8 +173,7 @@
         </div>
 
         <div id="categoryButtonGroup" class="flex flex-wrap gap-2 mb-6"></div>
-        <div id="productGrid" class="grid grid-cols-2 lg:grid-cols-4 gap-6 content-start"></div>
-
+<div id="productGrid" class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 lg:gap-6 content-start"></div>
         <div id="salesBlockOverlay" class="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center rounded-l-3xl transition-all duration-300">
             <div class="bg-white p-8 rounded-3xl shadow-2xl flex flex-col items-center text-center border border-gray-100 max-w-sm">
                 <div class="text-6xl mb-4">🔒</div>
@@ -2302,14 +2301,14 @@ function renderProductGrid(data) {
             imageDisplay = `<div class="bg-emerald-50 w-full h-full rounded-xl flex items-center justify-center text-4xl shadow-sm border border-emerald-100">📦</div>`;
         }
 
-        html += `
-        <div class="modern-card p-4 cursor-pointer flex flex-col h-full hover:bg-emerald-50 transition relative" onclick="addToCart('${safeName}', ${price})">
-            <div class="h-28 w-full mb-3 flex items-center justify-center overflow-hidden rounded-xl bg-white relative">
+html += `
+        <div class="modern-card p-2.5 lg:p-4 cursor-pointer flex flex-col h-full hover:bg-emerald-50 transition relative" onclick="addToCart('${safeName}', ${price})">
+            <div class="h-20 lg:h-28 w-full mb-2 lg:mb-3 flex items-center justify-center overflow-hidden rounded-xl bg-white relative">
                 ${imageDisplay}
             </div>
-            ${category ? `<span class="absolute top-2 left-2 bg-white/90 backdrop-blur text-emerald-700 text-xs px-2 py-1 rounded-lg border border-emerald-100 font-bold shadow-sm">${category}</span>` : ''}
-            <h3 class="font-bold text-center text-gray-800 line-clamp-2 text-sm">${name}</h3>
-            <p class="text-emerald-600 font-bold text-center mt-auto text-lg pt-2">฿${parseFloat(price).toFixed(2)}</p>
+            ${category ? `<span class="absolute top-1 left-1 lg:top-2 lg:left-2 bg-white/90 backdrop-blur text-emerald-700 text-[10px] lg:text-xs px-1.5 py-0.5 lg:px-2 lg:py-1 rounded-md lg:rounded-lg border border-emerald-100 font-bold shadow-sm leading-none">${category}</span>` : ''}
+            <h3 class="font-bold text-center text-gray-800 line-clamp-2 text-xs lg:text-sm leading-tight lg:leading-normal mt-1">${name}</h3>
+            <p class="text-emerald-600 font-bold text-center mt-auto text-sm lg:text-lg pt-1.5">฿${parseFloat(price).toFixed(2)}</p>
         </div>`;
     });
     grid.innerHTML = html;
@@ -2440,8 +2439,9 @@ function showView(viewName) {
     settingsViews.forEach(id => { let el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
     // 3. จัดการสไตล์ไฮไลต์ของเมนูด้านซ้าย (Sidebar)
-    let inactiveClass = "flex items-center gap-3 text-gray-500 p-3 rounded-xl hover:bg-emerald-50 hover:text-emerald-600 font-semibold cursor-pointer transition";
-    let activeClass = "flex items-center gap-3 text-emerald-700 bg-emerald-50 p-3 rounded-xl font-semibold cursor-pointer transition";
+// 3. จัดการสไตล์ไฮไลต์ของเมนูด้านซ้าย (Sidebar)
+    let inactiveClass = "flex items-center justify-center lg:justify-start gap-3 text-gray-500 p-3 rounded-xl hover:bg-emerald-50 hover:text-emerald-600 font-semibold cursor-pointer transition w-full";
+    let activeClass = "flex items-center justify-center lg:justify-start gap-3 text-emerald-700 bg-emerald-50 p-3 rounded-xl font-semibold cursor-pointer transition w-full";
     
     let navIds = ['nav-sales', 'nav-history', 'nav-settings', 'nav-products', 'nav-dashboard', 'nav-inventory', 'nav-stock_adjust', 'nav-membership', 'nav-shift'];
     navIds.forEach(id => {
