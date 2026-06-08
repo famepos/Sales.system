@@ -87,6 +87,13 @@
 <body class="h-screen flex overflow-hidden">
   
 <div id="toastContainer" class="fixed top-5 right-5 z-[10000] flex flex-col gap-3 pointer-events-none w-80"></div>
+  <div id="offlineSyncBadge" class="hidden fixed bottom-24 right-6 bg-orange-500 text-white px-5 py-3 rounded-full shadow-[0_10px_25px_rgba(249,115,22,0.4)] z-[60] font-bold flex items-center gap-3 transition-all transform hover:scale-105">
+    <span class="animate-pulse text-2xl">📡</span> 
+    <div class="flex flex-col leading-tight">
+        <span class="text-xs text-orange-200">สถานะอินเทอร์เน็ต</span>
+        <span id="offlineSyncText" class="text-sm">รอส่ง 0 บิล</span>
+    </div>
+</div>
 
 <div id="loginOverlay" class="fixed inset-0 bg-gradient-to-br from-emerald-50 via-white to-emerald-100 flex flex-col items-center justify-center z-[9999] p-4">
   <div class="bg-white p-10 rounded-[2.5rem] shadow-2xl w-full max-w-md border border-emerald-100 flex flex-col items-center text-center">
@@ -2036,6 +2043,64 @@
 
   <script>
 
+    // ============================================
+// 📡 ระบบจัดการ Offline Mode & Auto Sync
+// ============================================
+let isSyncingSales = false;
+
+function updateOfflineUI() {
+    let badge = document.getElementById('offlineSyncBadge');
+    let text = document.getElementById('offlineSyncText');
+    let offlineSales = JSON.parse(localStorage.getItem('famepos_offline_sales') || '[]');
+
+    if (!navigator.onLine && offlineSales.length > 0) {
+        badge.classList.remove('hidden');
+        badge.classList.replace('bg-emerald-500', 'bg-red-500'); // สีแดง = เน็ตตัด
+        text.innerText = `ไม่มีเน็ต (ค้าง ${offlineSales.length} บิล)`;
+    } else if (offlineSales.length > 0) {
+        badge.classList.remove('hidden');
+        badge.classList.replace('bg-red-500', 'bg-orange-500'); // สีส้ม = กำลังซิงค์
+        text.innerText = `กำลังส่งเข้าเซิร์ฟเวอร์ (${offlineSales.length} บิล)`;
+        syncOfflineSales(); // สั่งซิงค์อัตโนมัติเมื่อเห็นว่ามีเน็ต
+    } else {
+        badge.classList.add('hidden'); // ซ่อนป้ายเมื่อส่งครบหมดแล้ว
+    }
+}
+
+function syncOfflineSales() {
+    // ถ้าระบบกำลังส่งข้อมูลอยู่ หรือ ไม่มีเน็ต ให้หยุดพักก่อน
+    if (!navigator.onLine || isSyncingSales) return;
+    
+    let offlineSales = JSON.parse(localStorage.getItem('famepos_offline_sales') || '[]');
+    if (offlineSales.length === 0) return;
+
+    isSyncingSales = true;
+    let sale = offlineSales[0]; // หยิบบิลเก่าสุด (Index 0) มาส่งทีละบิล
+
+    google.script.run
+        .withSuccessHandler(function(res) {
+            // ส่งสำเร็จ -> ลบบิลคิวแรกทิ้ง
+            let currentSales = JSON.parse(localStorage.getItem('famepos_offline_sales') || '[]');
+            currentSales.shift(); 
+            localStorage.setItem('famepos_offline_sales', JSON.stringify(currentSales));
+            
+            isSyncingSales = false;
+            updateOfflineUI(); // ระบบจะเรียกตัวเองซ้ำเพื่อส่งบิลถัดไปจนกว่าจะหมดคิว
+        })
+        .withFailureHandler(function(err) {
+            console.error("Auto Sync Failed:", err);
+            isSyncingSales = false;
+            setTimeout(updateOfflineUI, 10000); // ถ้าส่งพลาด ให้รอ 10 วิแล้วลองใหม่
+        })
+        .processSale(sale.cartData, sale.selectedPayment, sale.currentCash, sale.changeStr, sale.totalDiscountForDB, sale.phone, sale.exactCash, sale.exactTransfer, sale.tax, sale.service, sale.usedPoints, sale.currentUserLog, sale.currentBranchLog);
+}
+
+// 🟢 ลงทะเบียนการจับสัญญาณเน็ต และเช็คคิวข้อมูลตอนเปิดหน้าร้านครั้งแรก
+window.addEventListener('online', updateOfflineUI);
+window.addEventListener('offline', updateOfflineUI);
+setInterval(updateOfflineUI, 15000); // ตั้งเวลาตรวจสอบอัตโนมัติทุกๆ 15 วินาที
+setTimeout(updateOfflineUI, 3000);   // เช็คคิวคงค้างหลังจากเปิดแอป 3 วินาที
+
 if (typeof google === 'undefined') {
     window.google = { script: {} };
     
@@ -2918,15 +2983,15 @@ function updateTimerDisplay() {
     function refreshQR() { calculateChange(); startQRTimer(); }
 
 function confirmPayment() {
-    let grandTotal = parseFloat(document.getElementById('modalGrandTotal').innerText.replace('฿', ''));
+    let grandTotal = parseFloat(document.getElementById('modalGrandTotal').innerText.replace('฿', '').replace(',', '')) || 0;
+    let subTot = parseFloat(document.getElementById('modalSubTotal').innerText.replace('฿', '').replace(',', '')) || 0;
     let discount = parseFloat(document.getElementById('discountInput').value) || 0;
     let phone = document.getElementById('customerPhone').value || "-";
     let cash = parseFloat(currentCash) || 0;
     let changeStr = document.getElementById('changeAmount').innerText;
     
-    // ดึงค่าภาษีและค่าบริการจาก UI
-    let tax = document.getElementById('displayTax') ? document.getElementById('displayTax').innerText.replace('฿', '') : "0";
-    let service = document.getElementById('displayService') ? document.getElementById('displayService').innerText.replace('฿', '') : "0";
+    let tax = document.getElementById('displayTax') ? document.getElementById('displayTax').innerText.replace('฿', '').replace(',', '') : "0";
+    let service = document.getElementById('displayService') ? document.getElementById('displayService').innerText.replace('฿', '').replace(',', '') : "0";
       
     if((selectedPayment === 'เงินสด' || selectedPayment === 'คนละครึ่ง') && cash < grandTotal) return showToast("จำนวนเงินสดไม่เพียงพอ!", "error");
     
@@ -2940,11 +3005,9 @@ function confirmPayment() {
         exactTransfer = grandTotal - exactCash;
     }
       
-    // ควบคุมปุ่มยืนยันหลัก
     let btn = document.getElementById('btnConfirm');
     if(btn) { btn.innerText = "กำลังบันทึก..."; btn.disabled = true; }
     
-    // ควบคุมปุ่มชำระเงินในหน้า QR Code
     let btnQR = document.getElementById('btnConfirmQR');
     if(btnQR) { btnQR.innerText = "กำลังบันทึก..."; btnQR.disabled = true; }
     
@@ -2952,7 +3015,6 @@ function confirmPayment() {
     
     let cartData = cart.map(function(i) { return {name: i.name, qty: i.qty, total: i.price * i.qty}; });
     
-    // --- ส่วนลดจากแต้ม ---
     let usedPoints = parseInt(document.getElementById('usePointsInput')?.value) || 0;
     let pointDiscount = 0;
     if (window.pointConfig && window.pointConfig.redeemPoint > 0) {
@@ -2960,7 +3022,6 @@ function confirmPayment() {
     }
     let totalDiscountForDB = discount + pointDiscount;
 
-    // ✅ สร้างตัวแปรดึงชื่อพนักงานและสาขาที่ล็อกอินอยู่ (ถ้าไม่มีระบบจะใช้ค่า ไม่ระบุ)
     let currentUserLog = window.currentUser || "ไม่ระบุพนักงาน";
     let currentBranchLog = window.currentBranch || "ไม่ระบุสาขา";
 
@@ -3044,7 +3105,123 @@ function confirmPayment() {
     }).processSale(cartData, selectedPayment, currentCash, changeStr, totalDiscountForDB, phone, exactCash, exactTransfer, tax, service, usedPoints, currentUserLog, currentBranchLog);
 }
 
+// ✅ ฟังก์ชันช่วยจัดการ UI ใบเสร็จ (ใช้ร่วมกันทั้งตอน Online และ Offline)
+    function processReceiptUI(res) {
+        document.getElementById('receiptDate').innerText = res.timestamp;
+        document.getElementById('slipOrderId').innerText = res.orderId;
+        document.getElementById('slipDate').innerText = res.timestamp;
+        document.getElementById('slipPhone').innerText = phone;
+        document.getElementById('slipUser').innerText = currentUserLog;
+        document.getElementById('receiptBranchDisplay').innerText = currentBranchLog;
 
+        let branchInfo = globalBranchesList.find(b => currentBranchLog.includes(b.name) || b.name.includes(currentBranchLog));
+        let branchAddress = (branchInfo && branchInfo.desc && branchInfo.desc.trim() !== "") ? branchInfo.desc : (globalStoreSettings.address || "");
+        document.getElementById('receiptAddress').innerText = branchAddress;
+
+        let itemsHtml = "";
+        res.cart.forEach(function(item) { 
+            itemsHtml += '<div class="flex justify-between mb-1"><span>' + item.name + 
+            '</span><span>' + item.total.toFixed(2) + '</span></div><div class="text-xs text-gray-500">' + item.qty + ' x ' + (item.total/item.qty).toFixed(2) + '</div>'; 
+        });
+        document.getElementById('slipItems').innerHTML = itemsHtml;
+        document.getElementById('slipSubTotal').innerText = res.subTotal.toFixed(2) + " ฿";
+        document.getElementById('slipDiscount').innerText = "- " + parseFloat(res.discount).toFixed(2) + " ฿";
+        document.getElementById('slipGrandTotal').innerText = res.grandTotal.toFixed(2) + " ฿";
+        document.getElementById('slipPayType').innerText = res.paymentType;
+        
+        document.getElementById('slipCash').innerText = parseFloat(res.cashAmount).toFixed(2);
+        document.getElementById('slipTransfer').innerText = parseFloat(res.transferAmount).toFixed(2);
+        document.getElementById('slipChange').innerText = res.changeAmount;
+        document.getElementById('slipTax').innerText = parseFloat(res.vat).toFixed(2) + " ฿";
+        document.getElementById('slipService').innerText = parseFloat(res.serviceCharge).toFixed(2) + " ฿";
+
+        document.getElementById('slipEarnedPoints').innerText = res.earnedPoints;
+        document.getElementById('slipUsedPoints').innerText = usedPoints;
+        document.getElementById('slipRemainingPoints').innerText = res.newTotalPoints;
+
+        let pointsWrapper = document.getElementById('receiptPointsWrapper');
+        if (pointsWrapper) {
+            if (phone && phone !== "-" && phone.trim() !== "") pointsWrapper.classList.remove('hidden');
+            else pointsWrapper.classList.add('hidden');
+        }
+        
+        let slipTaxRow = document.getElementById('slipTaxRow');
+        if (slipTaxRow) {
+            if (globalStoreSettings.enableTax) slipTaxRow.classList.remove('hidden');
+            else slipTaxRow.classList.add('hidden');
+        }
+
+        let slipServiceRow = document.getElementById('slipServiceRow');
+        if (slipServiceRow) {
+            if (globalStoreSettings.enableService) slipServiceRow.classList.remove('hidden');
+            else slipServiceRow.classList.add('hidden');
+        }
+        
+        let rQR = document.getElementById('receiptQRPromptPay');
+        if(globalStoreSettings.showReceiptQR && globalStoreSettings.promptPay) {
+          rQR.src = 'https://promptpay.io/' + globalStoreSettings.promptPay + '/' + res.grandTotal + '.png';
+          rQR.classList.remove('hidden');
+        } else { rQR.classList.add('hidden'); }
+
+        document.getElementById('paymentModal').classList.add('hidden');
+        document.getElementById('qrModal').classList.add('hidden'); 
+        
+        let changeModalAmount = document.getElementById('changeModalAmount');
+        if (changeModalAmount) changeModalAmount.innerText = res.changeAmount + " ฿";
+        document.getElementById('changeModal').classList.remove('hidden');
+        
+        if(btn) { btn.innerText = "ยืนยันชำระเงิน (Enter)"; btn.disabled = false; }
+        if(btnQR) { btnQR.innerText = "ชำระเงินแล้ว"; btnQR.disabled = false; }
+    }
+
+    // ✅ ฟังก์ชันบันทึกบิลเก็บไว้ในเครื่อง (Offline Mode)
+    function handleOfflineMode() {
+        let payload = {
+            cartData: cartData, selectedPayment: selectedPayment, currentCash: currentCash, changeStr: changeStr, 
+            totalDiscountForDB: totalDiscountForDB, phone: phone, exactCash: exactCash, exactTransfer: exactTransfer, 
+            tax: tax, service: service, usedPoints: usedPoints, currentUserLog: currentUserLog, currentBranchLog: currentBranchLog,
+            timestamp: new Date().toLocaleString('th-TH')
+        };
+        
+        // บันทึกลง Local Storage
+        let offlineSales = JSON.parse(localStorage.getItem('famepos_offline_sales') || '[]');
+        offlineSales.push(payload);
+        localStorage.setItem('famepos_offline_sales', JSON.stringify(offlineSales));
+        
+        // สร้างใบเสร็จชั่วคราว
+        let mockRes = {
+            timestamp: payload.timestamp,
+            orderId: "OFF-" + Date.now().toString().slice(-5), // เลขบิลชั่วคราว
+            cart: cartData, subTotal: subTot, discount: totalDiscountForDB, grandTotal: grandTotal,
+            paymentType: selectedPayment, cashAmount: exactCash, transferAmount: exactTransfer, changeAmount: changeStr,
+            vat: parseFloat(tax)||0, serviceCharge: parseFloat(service)||0,
+            earnedPoints: "รอซิงค์", newTotalPoints: "รอซิงค์"
+        };
+        
+        processReceiptUI(mockRes);
+        updateOfflineUI(); // โชว์ป้ายเตือนซิงค์
+        showToast("ไม่มีสัญญาณเน็ต! บันทึกบิลลงเครื่องแล้ว (จะส่งเมื่อมีเน็ต)", "info");
+    }
+
+    // 🚦 ตรวจสอบเน็ต ถ้าไม่มีเน็ต ให้เข้าโหมด Offline ทันที
+    if (!navigator.onLine) {
+        handleOfflineMode();
+    } else {
+        // 🟢 กรณีมีเน็ต ส่งข้อมูลไปหลังบ้านปกติ
+        google.script.run
+            .withSuccessHandler(function(res) {
+                processReceiptUI(res);
+                showToast("บันทึกรายการขายสำเร็จ!", "success");
+            })
+            .withFailureHandler(function(err) {
+                // ถ้าส่งไปแล้วเน็ตหลุดกระทันหัน ให้ทำงานแบบ Offline แทนเพื่อป้องกันข้อมูลหาย
+                console.warn("เซิร์ฟเวอร์ไม่ตอบสนอง เข้าสู่โหมดออฟไลน์", err);
+                handleOfflineMode();
+            })
+            .processSale(cartData, selectedPayment, currentCash, changeStr, totalDiscountForDB, phone, exactCash, exactTransfer, tax, service, usedPoints, currentUserLog, currentBranchLog);
+    }
+}
+    
 function finishRealTime() {
   document.getElementById('receiptModal').classList.add('hidden');
   cart = []; 
