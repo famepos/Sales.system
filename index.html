@@ -3025,18 +3025,15 @@ function confirmPayment() {
     let currentUserLog = window.currentUser || "ไม่ระบุพนักงาน";
     let currentBranchLog = window.currentBranch || "ไม่ระบุสาขา";
 
-    google.script.run.withSuccessHandler(function(res) {
+    // ✅ ฟังก์ชันช่วยจัดการ UI ใบเสร็จ (ใช้ร่วมกันทั้งตอน Online และ Offline)
+    function processReceiptUI(res) {
         document.getElementById('receiptDate').innerText = res.timestamp;
         document.getElementById('slipOrderId').innerText = res.orderId;
         document.getElementById('slipDate').innerText = res.timestamp;
         document.getElementById('slipPhone').innerText = phone;
-        
-        // อัปเดตใบเสร็จให้แสดงชื่อพนักงานจากคนที่ทำรายการจริง
         document.getElementById('slipUser').innerText = currentUserLog;
-
         document.getElementById('receiptBranchDisplay').innerText = currentBranchLog;
 
-// 🟢 อัปเกรดโค้ดชุดนี้: ค้นหาที่อยู่สาขา (แบบยืดหยุ่น แม้ชื่อจะไม่ตรงเป๊ะก็หาเจอ)
         let branchInfo = globalBranchesList.find(b => currentBranchLog.includes(b.name) || b.name.includes(currentBranchLog));
         let branchAddress = (branchInfo && branchInfo.desc && branchInfo.desc.trim() !== "") ? branchInfo.desc : (globalStoreSettings.address || "");
         document.getElementById('receiptAddress').innerText = branchAddress;
@@ -3064,11 +3061,8 @@ function confirmPayment() {
 
         let pointsWrapper = document.getElementById('receiptPointsWrapper');
         if (pointsWrapper) {
-            if (phone && phone !== "-" && phone.trim() !== "") {
-                pointsWrapper.classList.remove('hidden');
-            } else {
-                pointsWrapper.classList.add('hidden');
-            }
+            if (phone && phone !== "-" && phone.trim() !== "") pointsWrapper.classList.remove('hidden');
+            else pointsWrapper.classList.add('hidden');
         }
         
         let slipTaxRow = document.getElementById('slipTaxRow');
@@ -3098,11 +3092,54 @@ function confirmPayment() {
         
         if(btn) { btn.innerText = "ยืนยันชำระเงิน (Enter)"; btn.disabled = false; }
         if(btnQR) { btnQR.innerText = "ชำระเงินแล้ว"; btnQR.disabled = false; }
+    }
+
+    // ✅ ฟังก์ชันบันทึกบิลเก็บไว้ในเครื่อง (Offline Mode)
+    function handleOfflineMode() {
+        let payload = {
+            cartData: cartData, selectedPayment: selectedPayment, currentCash: currentCash, changeStr: changeStr, 
+            totalDiscountForDB: totalDiscountForDB, phone: phone, exactCash: exactCash, exactTransfer: exactTransfer, 
+            tax: tax, service: service, usedPoints: usedPoints, currentUserLog: currentUserLog, currentBranchLog: currentBranchLog,
+            timestamp: new Date().toLocaleString('th-TH')
+        };
         
-        showToast("บันทึกรายการขายสำเร็จ!", "success");
+        // บันทึกลง Local Storage
+        let offlineSales = JSON.parse(localStorage.getItem('famepos_offline_sales') || '[]');
+        offlineSales.push(payload);
+        localStorage.setItem('famepos_offline_sales', JSON.stringify(offlineSales));
         
-    // ✅ ส่งตัวแปร currentUserLog และ currentBranchLog ปิดท้ายไปด้วย
-    }).processSale(cartData, selectedPayment, currentCash, changeStr, totalDiscountForDB, phone, exactCash, exactTransfer, tax, service, usedPoints, currentUserLog, currentBranchLog);
+        // สร้างใบเสร็จชั่วคราว
+        let mockRes = {
+            timestamp: payload.timestamp,
+            orderId: "OFF-" + Date.now().toString().slice(-5), // เลขบิลชั่วคราว
+            cart: cartData, subTotal: subTot, discount: totalDiscountForDB, grandTotal: grandTotal,
+            paymentType: selectedPayment, cashAmount: exactCash, transferAmount: exactTransfer, changeAmount: changeStr,
+            vat: parseFloat(tax)||0, serviceCharge: parseFloat(service)||0,
+            earnedPoints: "รอซิงค์", newTotalPoints: "รอซิงค์"
+        };
+        
+        processReceiptUI(mockRes);
+        updateOfflineUI(); // โชว์ป้ายเตือนซิงค์
+        showToast("ไม่มีสัญญาณเน็ต! บันทึกบิลลงเครื่องแล้ว (จะส่งเมื่อมีเน็ต)", "info");
+    }
+
+    // 🚦 ตรวจสอบเน็ต ถ้าไม่มีเน็ต ให้เข้าโหมด Offline ทันที
+    if (!navigator.onLine) {
+        handleOfflineMode();
+    } else {
+        // 🟢 กรณีมีเน็ต ส่งข้อมูลไปหลังบ้านปกติ
+        google.script.run
+            .withSuccessHandler(function(res) {
+                processReceiptUI(res);
+                showToast("บันทึกรายการขายสำเร็จ!", "success");
+            })
+            .withFailureHandler(function(err) {
+                // ถ้าส่งไปแล้วเน็ตหลุดกระทันหัน ให้ทำงานแบบ Offline แทนเพื่อป้องกันข้อมูลหาย
+                console.warn("เซิร์ฟเวอร์ไม่ตอบสนอง เข้าสู่โหมดออฟไลน์", err);
+                handleOfflineMode();
+            })
+            .processSale(cartData, selectedPayment, currentCash, changeStr, totalDiscountForDB, phone, exactCash, exactTransfer, tax, service, usedPoints, currentUserLog, currentBranchLog);
+    }
 }
 
 // ✅ ฟังก์ชันช่วยจัดการ UI ใบเสร็จ (ใช้ร่วมกันทั้งตอน Online และ Offline)
